@@ -7,12 +7,24 @@ st.title("🏠 Property Investment Accelerator Matcher")
 st.subheader("Upload DSR Excel → Auto-matched to PDF factors in seconds")
 st.markdown("**For a 5th grader: just upload and click download!**")
 
+# PDF targets (used for colouring AND scoring)
+targets = {
+    "Renter proportion %": (15, 35),
+    "Vacancy rate %": (0, 2),
+    "Auction clearance rate %": (60, 100),
+    "Days on market": (0, 65),
+    "Average vendor discounting %": (0, 5),
+    "Stock on market %": (0, 1.3),
+    "12 month rolling avg online search interest ratio": (26, 1000),
+    "Gross yield %": (4, 100),
+    "Demand to supply ratio": (55, 1000)
+}
+
 uploaded_file = st.file_uploader("Upload your DSR Excel file", type=["xlsx"])
 
 if uploaded_file:
     df = pd.read_excel(uploaded_file, sheet_name="Sheet1")
     
-    # Auto map DSR columns to PDF factors
     df_clean = pd.DataFrame()
     df_clean["State"] = df["State"]
     df_clean["Post Code"] = df["Post Code"]
@@ -27,14 +39,14 @@ if uploaded_file:
     df_clean["Gross yield %"] = df["Gross rental yield"].astype(str).str.replace('%', '').astype(float)
     df_clean["Demand to supply ratio"] = df["Demand to Supply Ratio"].astype(float)
     
-    # Missing fields (you fill later using the links)
+    # Missing fields
     pending = ["36 month median value growth rate %", "12 month rental growth rate %",
                "18 month building approvals versus total dwellings", "Accessibility infrastructure",
                "Job infrastructure", "Developable land supply"]
     for col in pending:
         df_clean[col] = "Click links below to fill"
     
-    # Colour coding + Growth Score (out of 9)
+    # Colour function
     def get_color(val, factor):
         if "Click links" in str(val):
             return "background-color: lightgray"
@@ -42,17 +54,6 @@ if uploaded_file:
             v = float(str(val).replace('%', ''))
         except:
             return ""
-        targets = {
-            "Renter proportion %": (15, 35),
-            "Vacancy rate %": (0, 2),
-            "Auction clearance rate %": (60, 100),
-            "Days on market": (0, 65),
-            "Average vendor discounting %": (0, 5),
-            "Stock on market %": (0, 1.3),
-            "12 month rolling avg online search interest ratio": (26, 1000),
-            "Gross yield %": (4, 100),
-            "Demand to supply ratio": (55, 1000)
-        }
         if factor not in targets:
             return ""
         low, high = targets[factor]
@@ -60,11 +61,12 @@ if uploaded_file:
             return "background-color: lightgreen"
         return "background-color: lightcoral"
     
+    # Growth Score
     score_cols = list(targets.keys())
     df_clean["Growth Score (out of 9)"] = df_clean[score_cols].apply(
         lambda row: sum("lightgreen" in get_color(row[col], col) for col in score_cols), axis=1)
     
-    # Display nice table
+    # Show table
     st.subheader(f"✅ Scored Suburbs — Best first (Growth Score out of 9)")
     styled = df_clean.style.apply(lambda row: [get_color(row[col], col) for col in df_clean.columns], axis=1)
     st.dataframe(styled, use_container_width=True, height=700)
@@ -72,19 +74,17 @@ if uploaded_file:
     # Download
     output = BytesIO()
     df_clean.to_excel(output, index=False)
-    st.download_button("⬇️ Download Enriched Excel (ready for your strategy)", 
-                       output.getvalue(), "Enriched_Suburbs.xlsx")
+    st.download_button("⬇️ Download Enriched Excel", output.getvalue(), "Enriched_Suburbs.xlsx")
     
     # Quick links
     st.subheader("🔗 Quick Links for Missing Factors")
-    st.write("Click any suburb below to open the exact pages from the PDF")
     for _, row in df_clean.iterrows():
         with st.expander(f"{row['Suburb']} ({row['State']} {row['Post Code']}) — Score {row['Growth Score (out of 9)']}/9"):
             suburb_slug = row['Suburb'].lower().replace(" ", "-")
             domain_link = f"https://www.domain.com.au/suburb-profile/{suburb_slug}-{row['State'].lower()}-{row['Post Code']}"
-            st.markdown(f"[Domain Profile (36-month growth + rental growth)]({domain_link})")
-            st.markdown("[OnTheHouse Median Growth](https://www.onthehouse.com.au/suburb-research) — search suburb")
-            st.markdown("[ABS QuickStats (census data)](https://www.abs.gov.au/census/find-census-data/quickstats/2021) — search suburb")
-            st.markdown("[Microburbs (amenity + jobs)](https://www.microurbs.com.au) — search suburb")
+            st.markdown(f"[Domain Profile (growth + rental)]({domain_link})")
+            st.markdown("[OnTheHouse Median Growth](https://www.onthehouse.com.au/suburb-research)")
+            st.markdown("[ABS QuickStats](https://www.abs.gov.au/census/find-census-data/quickstats/2021)")
+            st.markdown("[Microburbs](https://www.microurbs.com.au)")
 
-    st.success("🎉 Done! Your DSR data is now perfectly matched to the PDF system.")
+    st.success("🎉 Done! Upload worked perfectly this time.")
