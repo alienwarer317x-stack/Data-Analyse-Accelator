@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup
 
 st.set_page_config(page_title="Property Investment Accelerator Matcher", layout="wide")
 st.title("🏠 Property Investment Accelerator Matcher")
-st.subheader("Complete Final Version – DSR upload → Full Property Investment Accelerator with Base Value scraping")
+st.subheader("Base Value now auto-scraped from OnTheHouse + Housing Affordability from Domain")
 
 # ====================== ALL COLUMNS ======================
 columns = [
@@ -54,7 +54,7 @@ if uploaded_file:
     df_clean["Suburb"] = df["Suburb"]
     df_clean["Duplicate"] = df.get("Duplicate", "")
 
-    # DSR auto-mapping (safe)
+    # DSR auto-mapping
     df_clean["Renters Proportion% 15-35%"] = df["Percent renters in market"].astype(str).str.replace('%','').astype(float)
     df_clean["Vacancy rate% <2%"] = df["Vacancy rate"].astype(str).str.replace('%','').astype(float)
     df_clean["Auction clearance% >60%"] = df["Auction clearance rate"].astype(str).str.replace('%','').astype(float)
@@ -67,34 +67,43 @@ if uploaded_file:
     df_clean["Statistical reliability >51%"] = df.get("Statistical reliability", 0).astype(float)
     df_clean["Median 12 months"] = df["Median 12 months"].astype(float)
     df_clean["Typical value"] = df["Typical value"].astype(float)
-
-    # Base Value will be filled by scraping (DSR does not have it)
-    df_clean["Base Value"] = 0.0
+    df_clean["Base Value"] = 0.0   # Will be filled by scraper
 
     # Remaining columns = Pending
     for col in columns:
         if col not in df_clean.columns or pd.isna(df_clean[col]).all():
             df_clean[col] = "Pending - Auto-scrape coming"
 
-    # ====================== AUTO-SCRAPING FUNCTIONS ======================
+    # ====================== IMPROVED BASE VALUE SCRAPER (OnTheHouse) ======================
     def get_base_value(suburb, state, postcode):
-        """Scrapes 3-year-ago median price from OnTheHouse"""
         try:
             slug = suburb.lower().replace(" ", "-")
             url = f"https://www.onthehouse.com.au/property-profile/{state.lower()}/{postcode}/{slug}"
-            headers = {"User-Agent": "Mozilla/5.0"}
+            headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
             response = requests.get(url, headers=headers, timeout=15)
             if response.status_code != 200:
                 return 0.0
+
             soup = BeautifulSoup(response.text, "html.parser")
             text = soup.get_text()
-            # Look for historical median (simple keyword match - refined later)
-            if "2017" in text or "3 years" in text or "median" in text:
-                return 0.0  # Placeholder - real value will be extracted in next refinement
+
+            # Look for historical median value (3 years ago)
+            # Common patterns on OnTheHouse: "3 years ago", "Feb 2023", "$xxx,xxx" near year
+            if "3 years" in text.lower() or "2023" in text or "2022" in text:
+                # Very basic extraction - looks for dollar amounts near historical text
+                import re
+                numbers = re.findall(r'\$?(\d{1,3}(?:,\d{3})*(?:\.\d+)?)', text)
+                if numbers:
+                    # Take the first plausible historical price (usually the oldest one)
+                    for num in numbers:
+                        val = int(num.replace(',', ''))
+                        if 100000 <= val <= 2000000:  # realistic house price range
+                            return val
             return 0.0
         except:
             return 0.0
 
+    # ====================== HOUSING AFFORDABILITY (unchanged) ======================
     def get_housing_affordability(suburb, state, postcode):
         try:
             slug = suburb.lower().replace(" ", "-")
@@ -111,21 +120,22 @@ if uploaded_file:
         except:
             return "Pending - Auto-scrape failed"
 
-    # Run scraping
-    st.info("🔄 Auto-scraping Base Value (OnTheHouse) + Housing Affordability (Domain)...")
+    # Run both scrapers
+    st.info("🔄 Auto-scraping Base Value from OnTheHouse + Housing Affordability from Domain...")
     for idx, row in df_clean.iterrows():
+        # Base Value
         if df_clean.at[idx, "Base Value"] == 0.0:
             base_val = get_base_value(row["Suburb"], row["State"], row["Post Code"])
             df_clean.at[idx, "Base Value"] = base_val
         
+        # Housing Affordability
         if df_clean.at[idx, "Housing affordability"] == "Pending - Auto-scrape coming":
             aff = get_housing_affordability(row["Suburb"], row["State"], row["Post Code"])
             df_clean.at[idx, "Housing affordability"] = aff
 
-    # ====================== FINAL OUTPUT & RECOMMENDATION ======================
+    # ====================== FINAL RECOMMENDATION ======================
     st.subheader("✅ Full Property Investment Accelerator Sheet")
 
-    # Growth Score
     def growth_score(row):
         score = 0
         key_cols = ["Demand to Supply Ratio >55%", "Gross rental yield >4%", "Housing affordability", "Vacancy rate% <2%"]
