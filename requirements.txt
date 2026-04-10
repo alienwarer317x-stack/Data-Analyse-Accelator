@@ -1,3 +1,6 @@
-fastapi
-uvicorn
-pydantic
+streamlit
+pandas
+requests
+beautifulsoup4
+openpyxl
+``
