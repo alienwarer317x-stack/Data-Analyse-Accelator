@@ -1,3 +1,4 @@
+from bs4 import BeautifulSoup
 import streamlit as st
 import pandas as pd
 from io import BytesIO
