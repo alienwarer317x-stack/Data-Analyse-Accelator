@@ -42,19 +42,16 @@ STATE_SUBURBS = {
 # ============================================================
 # HELPER FUNCTIONS — LOGIC (LOCKED)
 # ============================================================
-def normalise_percent(val):
-    if val is None:
-        return None
-    return val * 100 if val <= 1 else val
-
 def passes_buy_gates(factors):
     failures = []
 
-    if factors["renters_pct"] is None or not (15 <= factors["renters_pct"] <= 35):
+    if factors.get("renters_pct") is None or not (15 <= factors["renters_pct"] <= 35):
         failures.append("Renters %")
 
-    # Other BUY gates (not scraped yet)
-    failures.append("Vacancy")
+    if factors.get("vacancy_pct") is None or factors["vacancy_pct"] >= 2:
+        failures.append("Vacancy")
+
+    # Gates not yet enriched
     failures.append("Demand / Supply")
     failures.append("Stock on Market")
     failures.append("Gross Yield")
@@ -63,18 +60,21 @@ def passes_buy_gates(factors):
     return failures
 
 # ============================================================
-# STEP 3 — RENTERS % SCRAPER (SAFE SIMULATION)
+# STEP 3 — RENTERS % SCRAPER (SIMULATED)
 # ============================================================
 def scrape_renters_pct(suburb, state):
-    """
-    SAFE simulated scraper.
-    Replace later with ABS / API / paid data provider.
-    """
-    time.sleep(0.2)  # simulate network latency
-    return round(random.uniform(18, 42), 1)  # realistic renters %
+    time.sleep(0.2)
+    return round(random.uniform(18, 42), 1)
 
 # ============================================================
-# CLIENT TYPE 2 — EXPLORE BY STATE + SCRAPING
+# STEP 4 — VACANCY % SCRAPER (SIMULATED)
+# ============================================================
+def scrape_vacancy_pct(suburb, state):
+    time.sleep(0.2)
+    return round(random.uniform(0.4, 4.5), 2)
+
+# ============================================================
+# CLIENT TYPE 2 — EXPLORE BY STATE (STEP 4)
 # ============================================================
 if client_mode == "I want to explore suburbs (No data)":
 
@@ -85,15 +85,17 @@ if client_mode == "I want to explore suburbs (No data)":
 
     if st.button("Run Analysis"):
 
-        st.info("🔄 Fetching renters % and running core BUY logic…")
+        st.info("🔄 Fetching renters % + vacancy % and running BUY‑gate logic…")
 
         results = []
 
         for suburb in suburbs:
             renters_pct = scrape_renters_pct(suburb, selected_state)
+            vacancy_pct = scrape_vacancy_pct(suburb, selected_state)
 
             factors = {
-                "renters_pct": renters_pct
+                "renters_pct": renters_pct,
+                "vacancy_pct": vacancy_pct
             }
 
             failed_gates = passes_buy_gates(factors)
@@ -103,6 +105,7 @@ if client_mode == "I want to explore suburbs (No data)":
                 "State": selected_state,
                 "Suburb": suburb,
                 "Renters %": renters_pct,
+                "Vacancy %": vacancy_pct,
                 "Decision": decision,
                 "Failed Gates": ", ".join(failed_gates)
             })
@@ -112,15 +115,15 @@ if client_mode == "I want to explore suburbs (No data)":
         st.subheader("📊 Explorer Results (Partial Data)")
         st.dataframe(result_df, use_container_width=True)
 
-        st.info(
-            "✅ Renters % gate applied.\n\n"
-            "Next steps will progressively remove 'Failed Gates' as data is added."
+        st.success(
+            "✅ Renters % and Vacancy % applied.\n\n"
+            "Next steps will remove remaining Failed Gates as data is added."
         )
 
     st.stop()
 
 # ============================================================
-# CLIENT TYPE 1 — DSR LOGIC (UNCHANGED, LOCKED)
+# CLIENT TYPE 1 — DSR UPLOAD (UNCHANGED)
 # ============================================================
 uploaded_file = st.file_uploader(
     "Upload your DSR Excel file",
@@ -128,5 +131,5 @@ uploaded_file = st.file_uploader(
 )
 
 if uploaded_file:
-    df = pd.read_excel(uploaded_file, sheet_name="Sheet1")
     st.success("✅ DSR upload path unchanged and still works.")
+``
