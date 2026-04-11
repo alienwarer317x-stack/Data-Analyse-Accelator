@@ -2,12 +2,64 @@ import streamlit as st
 import pandas as pd
 from io import BytesIO
 
-st.set_page_config(page_title="Property Investment Accelerator Matcher", layout="wide")
-st.title("🏠 Property Investment Accelerator Matcher")
-st.subheader("Cleaned & Fixed Logic Engine (v5 – Locked)")
+# ============================================================
+# APP SETUP
+# ============================================================
+st.set_page_config(
+    page_title="Property Investment Accelerator",
+    layout="wide"
+)
 
-# ====================== HELPER FUNCTIONS ======================
+st.title("🏠 Property Investment Accelerator")
+st.subheader("Authoritative Logic Engine · Dual Client Mode")
+
+# ============================================================
+# CLIENT TYPE SELECTION — STEP 1
+# ============================================================
+st.markdown("### Choose how you want to use the Accelerator")
+
+client_mode = st.radio(
+    "Client Type",
+    (
+        "I have DSR data (Upload Spreadsheet)",
+        "I want to explore suburbs (No data)"
+    )
+)
+
+# ============================================================
+# STEP 2 — STATIC SUBURB LISTS (NO SCRAPING YET)
+# ============================================================
+STATE_SUBURBS = {
+    "NSW": [
+        "Aberdeen", "Tamworth", "Wagga Wagga", "Maitland",
+        "Cessnock", "Albury", "Armidale", "Dubbo"
+    ],
+    "VIC": [
+        "Ballarat", "Bendigo", "Geelong",
+        "Shepparton", "Mildura", "Traralgon"
+    ],
+    "QLD": [
+        "Toowoomba", "Rockhampton", "Mackay",
+        "Bundaberg", "Gladstone"
+    ],
+    "TAS": [
+        "Hobart", "Launceston", "Burnie", "Devonport"
+    ],
+    "NT": [
+        "Darwin", "Palmerston", "Alice Springs"
+    ]
+}
+
+# ============================================================
+# HELPER FUNCTIONS (LOCKED)
+# ============================================================
 def normalise_percent(val):
+    """
+    Handles:
+    0.24  -> 24
+    24    -> 24
+    '24%' -> 24
+    """
     if pd.isna(val):
         return None
     try:
@@ -17,6 +69,10 @@ def normalise_percent(val):
         return None
 
 def normalise_plain(val):
+    """
+    Handles index or real percentage scales
+    (vacancy, stock %, demand/supply, reliability)
+    """
     if pd.isna(val):
         return None
     try:
@@ -24,16 +80,54 @@ def normalise_plain(val):
     except:
         return None
 
-# ====================== MAIN APP ======================
-uploaded_file = st.file_uploader("Upload your DSR Excel file", type=["xlsx"])
+# ============================================================
+# CLIENT TYPE 2 — EXPLORE BY STATE (STEP 2)
+# ============================================================
+if client_mode == "I want to explore suburbs (No data)":
+
+    st.markdown("### Explore Suburbs by State")
+
+    selected_state = st.selectbox(
+        "Select a State",
+        list(STATE_SUBURBS.keys())
+    )
+
+    suburbs = STATE_SUBURBS[selected_state]
+
+    st.info(
+        f"✅ Showing **{len(suburbs)} suburbs** for **{selected_state}**.\n\n"
+        "Next step:\n"
+        "- Suburb data scraping\n"
+        "- Logic engine execution\n\n"
+        "**No analysis is run yet by design.**"
+    )
+
+    suburb_df = pd.DataFrame({
+        "State": selected_state,
+        "Suburb": suburbs
+    })
+
+    st.subheader("📍 Suburbs Available for Analysis")
+    st.dataframe(suburb_df, use_container_width=True, height=400)
+
+    st.stop()  # DO NOT run logic for Client Type 2 yet
+
+# ============================================================
+# CLIENT TYPE 1 — DSR UPLOAD (LOCKED LOGIC ENGINE)
+# ============================================================
+uploaded_file = st.file_uploader(
+    "Upload your DSR Excel file",
+    type=["xlsx"]
+)
 
 if uploaded_file:
     df = pd.read_excel(uploaded_file, sheet_name="Sheet1")
     results = []
 
-    st.info("🔄 Running analysis with locked authoritative logic engine...")
+    st.info("🔄 Running analysis using locked authoritative logic engine...")
 
     for _, row in df.iterrows():
+
         # -------- FACTOR MAPPING --------
         factors = {
             "renters_pct": normalise_percent(row.get("Percent renters in market")),
@@ -46,6 +140,7 @@ if uploaded_file:
 
         # -------- BUY GATES --------
         failed_gates = []
+
         if factors["renters_pct"] is None or not (15 <= factors["renters_pct"] <= 35):
             failed_gates.append("Renters %")
         if factors["vacancy_pct"] is None or factors["vacancy_pct"] >= 2:
@@ -74,7 +169,7 @@ if uploaded_file:
             "Decision": decision,
             "Confidence": confidence_band,
             "Confidence Score": confidence_score,
-            "RW-CAGR": None,
+            "RW‑CAGR": None,
             "Renters %": factors["renters_pct"],
             "Vacancy %": factors["vacancy_pct"],
             "Demand / Supply": factors["demand_supply_ratio"],
@@ -84,9 +179,12 @@ if uploaded_file:
             "Explanation": explanation
         })
 
-    # -------- DISPLAY --------
+    # -------- DISPLAY RESULTS --------
     summary_df = pd.DataFrame(results)
-    summary_df = summary_df.sort_values(by=["Decision", "Confidence Score"], ascending=[False, False])
+    summary_df = summary_df.sort_values(
+        by=["Decision", "Confidence Score"],
+        ascending=[False, False]
+    )
 
     st.subheader("📊 Investment Recommendation Summary")
     st.dataframe(summary_df, use_container_width=True, height=700)
@@ -95,7 +193,6 @@ if uploaded_file:
         top = summary_df.iloc[0]
         st.success(f"🏆 **BEST SUBURB: {top['Suburb']}** — Decision: **{top['Decision']}**")
 
-    # -------- DOWNLOAD --------
     output = BytesIO()
     summary_df.to_excel(output, index=False)
     st.download_button(
@@ -104,4 +201,5 @@ if uploaded_file:
         "Property_Investment_Accelerator_Results.xlsx"
     )
 
-    st.info("✅ Logic engine locked. Results are now data-dependent, not code-dependent.")
+    st.info("✅ Logic engine locked. Results are data‑dependent, not code‑dependent.")
+``
