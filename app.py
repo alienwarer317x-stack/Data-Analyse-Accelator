@@ -45,7 +45,7 @@ STATE_SUBURBS = {
 }
 
 # ============================================================
-# SIMULATED SCRAPERS (SAFE, REALISTIC)
+# SIMULATED SCRAPERS (SAFE & REALISTIC)
 # ============================================================
 def scrape_renters_pct(suburb, state):
     time.sleep(0.1)
@@ -60,15 +60,20 @@ def scrape_demand_supply_ratio(suburb, state):
     return round(random.uniform(35, 80), 1)
 
 def scrape_stock_on_market_pct(suburb, state):
-    """
-    Typical Australian suburb range: ~0.3% – 2.5%
-    BUY gate is < 1.3%
-    """
     time.sleep(0.1)
     return round(random.uniform(0.3, 2.5), 2)
 
+def scrape_gross_rental_yield(suburb, state):
+    """
+    Simulated gross rental yield.
+    Typical range ~3.0% – 7.5%
+    BUY gate is > 4.0%
+    """
+    time.sleep(0.1)
+    return round(random.uniform(3.0, 7.5), 2)
+
 # ============================================================
-# CLIENT TYPE 2 — EXPLORER (STEP 7)
+# CLIENT TYPE 2 — EXPLORER (STEP 8)
 # ============================================================
 if client_mode == "I want to explore suburbs (No data)":
 
@@ -85,7 +90,7 @@ if client_mode == "I want to explore suburbs (No data)":
 
         st.info(
             "🔄 Fetching renters %, vacancy %, demand / supply, "
-            "and stock on market data, then running BUY logic…"
+            "stock on market, and gross yield — then running BUY logic…"
         )
 
         rows = []
@@ -96,9 +101,9 @@ if client_mode == "I want to explore suburbs (No data)":
                 "vacancy_pct": scrape_vacancy_pct(suburb, selected_state),
                 "demand_supply_ratio": scrape_demand_supply_ratio(suburb, selected_state),
                 "stock_on_market_pct": scrape_stock_on_market_pct(suburb, selected_state),
+                "gross_rental_yield": scrape_gross_rental_yield(suburb, selected_state),
 
-                # Gates not yet enriched (next steps)
-                "gross_rental_yield": None,
+                # Final gate still pending
                 "statistical_reliability": None,
             }
 
@@ -112,6 +117,7 @@ if client_mode == "I want to explore suburbs (No data)":
                 "Vacancy %": factors["vacancy_pct"],
                 "Demand / Supply": factors["demand_supply_ratio"],
                 "Stock on Market %": factors["stock_on_market_pct"],
+                "Gross Yield %": factors["gross_rental_yield"],
                 "Decision": decision,
                 "Confidence": band,
                 "Failed Gates": ", ".join(failed_gates)
@@ -123,8 +129,8 @@ if client_mode == "I want to explore suburbs (No data)":
         st.dataframe(result_df, use_container_width=True)
 
         st.success(
-            "✅ Renters %, Vacancy %, Demand / Supply, and Stock on Market applied.\n\n"
-            "Remaining Failed Gates (Gross Yield, Reliability) will resolve as data is added."
+            "✅ Gross Rental Yield applied.\n\n"
+            "Only Statistical Reliability remains before Explorer BUYs are fully validated."
         )
 
     st.stop()
