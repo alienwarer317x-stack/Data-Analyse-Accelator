@@ -95,10 +95,13 @@ if uploaded_file:
         top = summary_df.iloc[0]
         st.success(f"🏆 **BEST SUBURB: {top['Suburb']}** — Decision: **{top['Decision']}**")
 
+    # -------- DOWNLOAD --------
     output = BytesIO()
     summary_df.to_excel(output, index=False)
     st.download_button(
         "⬇️ Download Full Analysis",
         output.getvalue(),
         "Property_Investment_Accelerator_Results.xlsx"
-   
+    )
+
+    st.info("✅ Logic engine locked. Results are now data-dependent, not code-dependent.")
