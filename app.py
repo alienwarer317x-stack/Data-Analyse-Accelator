@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup
 
 st.set_page_config(page_title="Property Investment Accelerator Matcher", layout="wide")
 st.title("🏠 Property Investment Accelerator Matcher")
-st.subheader("Authoritative Locked Spec — Full End-to-End Orchestration")
+st.subheader("Authoritative Logic Engine + DSR Upload → Full Scoring")
 
 # ====================== 1. MASTER ACCELERATOR FACTOR LIST (35) ======================
 ACCELERATOR_FACTORS = [
@@ -39,44 +39,24 @@ BUY_GATES = {
     "statistical_reliability": ">51"
 }
 
-# ====================== 3. HELPER FUNCTIONS (from your spec) ======================
-def initialise_blank_record(suburb, state, postcode):
-    return {
-        "suburb": suburb,
-        "state": state,
-        "postcode": postcode,
-        "location_context": f"{suburb}, {state} {postcode}",
-    }
+# ====================== HELPER FUNCTIONS (Exact from your spec) ======================
+def safe_num(v):
+    if v is None or pd.isna(v):
+        return None
+    try:
+        return float(v)
+    except:
+        return None
 
-def map_dsr_values(record, dsr_row):
-    # Safe mapping from your DSR file
-    record.update({
-        "renters_pct": dsr_row.get("Percent renters in market"),
-        "vacancy_pct": dsr_row.get("Vacancy rate"),
-        "demand_supply_ratio": dsr_row.get("Demand to Supply Ratio"),
-        "stock_on_market_pct": dsr_row.get("Percent stock on market"),
-        "days_on_market": dsr_row.get("Days on market"),
-        "auction_clearance_pct": dsr_row.get("Auction clearance rate"),
-        "vendor_discount_pct": dsr_row.get("Avg vendor discount"),
-        "online_search_index": dsr_row.get("Online search interest"),
-        "median_12m_change": dsr_row.get("Median 12 months"),
-        "statistical_reliability": dsr_row.get("Statistical reliability"),
-        "gross_rental_yield": dsr_row.get("Gross rental yield"),
-        "typical_value": dsr_row.get("Typical value"),
-    })
-    return record
+def passes_buy_gates(f):
+    if f.get("renters_pct") is None or not (15 <= f["renters_pct"] <= 35): return False
+    if f.get("vacancy_pct") is None or f["vacancy_pct"] >= 2: return False
+    if f.get("demand_supply_ratio") is None or f["demand_supply_ratio"] <= 55: return False
+    if f.get("stock_on_market_pct") is None or f["stock_on_market_pct"] >= 1.3: return False
+    if f.get("statistical_reliability") is None or f["statistical_reliability"] <= 51: return False
+    return True
 
-def scrape_sqm(suburb, state): return {}   # Placeholder - expand later
-def scrape_htag(suburb, state): return {}
-def scrape_onthehouse(suburb, state): return {}
-def scrape_areasearch(suburb, state): return {}
-def scrape_abs(postcode): return {}
-
-def calculate_composites(record): return record
-def validate_completeness(record): pass
-
-def calculate_rw_cagr(record):
-    # Exact implementation from your spec
+def calculate_rw_cagr(f):
     sources = [
         ("sqm_cagr_10y", 0.4),
         ("oth_10y_growth", 0.4),
@@ -85,73 +65,93 @@ def calculate_rw_cagr(record):
     weighted_sum = 0
     weight_total = 0
     for field, weight in sources:
-        value = record.get(field)
-        if value is not None:
-            weighted_sum += value * weight
+        val = safe_num(f.get(field))
+        if val is not None:
+            weighted_sum += val * weight
             weight_total += weight
     return round(weighted_sum / weight_total, 2) if weight_total > 0 else None
 
-def determine_signal(record):
-    if not all([record.get(k) for k in BUY_GATES]): return "AVOID"
-    return "BUY"  # Simplified for now
-
-def calculate_confidence(record):
+def calculate_confidence(f):
     score = 100
+    if safe_num(f.get("vendor_discount_pct")) is not None and f["vendor_discount_pct"] > 5:
+        score -= 10
+    if safe_num(f.get("unemployment_vs_state")) is not None and f["unemployment_vs_state"] > 2:
+        score -= 15
+    if safe_num(f.get("building_approvals_18m")) is not None and f["building_approvals_18m"] >= 8:
+        score -= 15
+    if str(f.get("employment_diversity", "")).lower() == "low":
+        score -= 10
     band = "High" if score >= 75 else "Medium" if score >= 55 else "Low"
     return score, band
 
-def build_suburb_snapshot(record):
-    return {
-        "location": record.get("location_context"),
-        "population": "N/A (scrape pending)",
-        "employment_industry": record.get("employment_diversity"),
-        "job_type_mix": "N/A",
-        "charts": {}
-    }
+def determine_signal(f):
+    if not passes_buy_gates(f):
+        return "AVOID"
+    if safe_num(f.get("building_approvals_18m")) is not None and f["building_approvals_18m"] >= 8:
+        return "HOLD"
+    return "BUY"
 
-def build_35_factor_panel(record):
-    panel = []
-    for factor in ACCELERATOR_FACTORS:
-        panel.append({"factor": factor, "status": "Pending"})
-    return panel
-
-# ====================== MAIN STREAMLIT APP ======================
+# ====================== STREAMLIT APP ======================
 uploaded_file = st.file_uploader("Upload your DSR Excel file", type=["xlsx"])
 
 if uploaded_file:
     df = pd.read_excel(uploaded_file, sheet_name="Sheet1")
     results = []
 
-    st.info("🔄 Running full Property Investment Accelerator analysis on all suburbs...")
+    st.info("🔄 Running full Property Investment Accelerator Logic Engine...")
 
     for _, row in df.iterrows():
-        analysis = run_full_analysis(
-            suburb=row["Suburb"],
-            state=row["State"],
-            postcode=row["Post Code"],
-            dsr_row=row
-        )
-        results.append(analysis)
+        # Build factor record
+        factors = {
+            "renters_pct": safe_num(row.get("Percent renters in market")),
+            "vacancy_pct": safe_num(row.get("Vacancy rate")),
+            "demand_supply_ratio": safe_num(row.get("Demand to Supply Ratio")),
+            "stock_on_market_pct": safe_num(row.get("Percent stock on market")),
+            "days_on_market": safe_num(row.get("Days on market")),
+            "auction_clearance_pct": safe_num(row.get("Auction clearance rate")),
+            "vendor_discount_pct": safe_num(row.get("Avg vendor discount")),
+            "online_search_index": safe_num(row.get("Online search interest")),
+            "median_12m_change": safe_num(row.get("Median 12 months")),
+            "statistical_reliability": safe_num(row.get("Statistical reliability")),
+            "gross_rental_yield": safe_num(row.get("Gross rental yield")),
+            # Remaining factors are pending (will be filled by future scrapers)
+        }
 
-    # Convert to DataFrame for display
-    summary = pd.DataFrame([{
-        "Suburb": r["snapshot"]["location"],
-        "Decision": r["decision"],
-        "Confidence": r["confidence"]["band"],
-        "RW-CAGR": r["confidence"]["rw_cagr"]
-    } for r in results])
+        # Run the full logic engine
+        rw_cagr = calculate_rw_cagr(factors)
+        confidence_score, confidence_band = calculate_confidence(factors)
+        decision = determine_signal(factors)
+
+        explanation = f"{decision}: "
+        if decision == "BUY":
+            explanation += "Strong demand-supply balance and meets all core gates."
+        elif decision == "HOLD":
+            explanation += "Elevated future supply risk detected."
+        else:
+            explanation += "Failed one or more core eligibility gates."
+
+        results.append({
+            "Suburb": row["Suburb"],
+            "Decision": decision,
+            "Confidence": confidence_band,
+            "Confidence Score": confidence_score,
+            "RW-CAGR": rw_cagr,
+            "Explanation": explanation
+        })
+
+    # Display results
+    summary_df = pd.DataFrame(results)
+    summary_df = summary_df.sort_values(by="Confidence Score", ascending=False)
 
     st.subheader("📊 Investment Recommendation Summary")
-    st.dataframe(summary.sort_values(by="RW-CAGR", ascending=False), use_container_width=True)
+    st.dataframe(summary_df, use_container_width=True, height=600)
 
-    # Detailed view for top suburb
-    top = results[0]
-    st.success(f"🏆 **TOP RECOMMENDED: {top['snapshot']['location']}** — Decision: **{top['decision']}**")
+    top = summary_df.iloc[0]
+    st.success(f"🏆 **BEST SUBURB: {top['Suburb']}** — Decision: **{top['Decision']}**")
 
-    st.download_button(
-        "⬇️ Download Full Analysis Excel",
-        pd.DataFrame(results).to_excel(index=False).encode(),
-        "Full_Accelerator_Analysis.xlsx"
-    )
+    # Download
+    output = BytesIO()
+    summary_df.to_excel(output, index=False)
+    st.download_button("⬇️ Download Full Analysis", output.getvalue(), "Property_Investment_Accelerator_Results.xlsx")
 
-    st.info("All 35 factors processed per the locked authoritative spec.")
+    st.info("Logic engine running per authoritative spec. More scrapers will be added next.")
