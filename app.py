@@ -1,76 +1,60 @@
 import streamlit as st
 import pandas as pd
 from io import BytesIO
-import requests
-from bs4 import BeautifulSoup
 
 st.set_page_config(page_title="Property Investment Accelerator Matcher", layout="wide")
 st.title("🏠 Property Investment Accelerator Matcher")
-st.subheader("Fixed Mapping + Full Logic Engine")
+st.subheader("Fixed Mapping + Realistic Scoring (v2)")
 
-# ====================== MASTER FACTORS & GATES ======================
-BUY_GATES = {
-    "renters_pct": (15, 35),
-    "vacancy_pct": "<2",
-    "demand_supply_ratio": ">55",
-    "stock_on_market_pct": "<1.3",
-    "gross_rental_yield": ">4",
-    "statistical_reliability": ">51"
-}
-
-def safe_num(v):
-    if v is None or pd.isna(v):
-        return None
-    try:
-        return float(str(v).replace('%', '').replace('days', ''))
-    except:
-        return None
-
-# ====================== MAIN APP ======================
 uploaded_file = st.file_uploader("Upload your DSR Excel file", type=["xlsx"])
 
 if uploaded_file:
     df = pd.read_excel(uploaded_file, sheet_name="Sheet1")
     results = []
 
-    st.info("🔄 Running full analysis with corrected DSR mapping...")
+    st.info("🔄 Running analysis with improved DSR mapping...")
 
     for _, row in df.iterrows():
-        # ==================== FIXED DSR MAPPING ====================
+        # ==================== IMPROVED DSR MAPPING ====================
         factors = {
-            "renters_pct": safe_num(row.get("Percent renters in market")),
-            "vacancy_pct": safe_num(row.get("Vacancy rate")),
-            "demand_supply_ratio": safe_num(row.get("Demand to Supply Ratio")),
-            "stock_on_market_pct": safe_num(row.get("Percent stock on market")),
-            "days_on_market": safe_num(row.get("Days on market")),
-            "auction_clearance_pct": safe_num(row.get("Auction clearance rate")),
-            "vendor_discount_pct": safe_num(row.get("Avg vendor discount")),
-            "online_search_index": safe_num(row.get("Online search interest")),
-            "median_12m_change": safe_num(row.get("Median 12 months")),
-            "statistical_reliability": safe_num(row.get("Statistical reliability")),
-            "gross_rental_yield": safe_num(row.get("Gross rental yield")),
-            "typical_value": safe_num(row.get("Typical value")),
-            # Future scraped fields (still pending)
-            "sqm_cagr_10y": None,
-            "oth_10y_growth": None,
-            "htag_cagr_10y": None,
-            "building_approvals_18m": None,
-            "employment_diversity": None,
+            "renters_pct": pd.to_numeric(row.get("Percent renters in market"), errors='coerce'),
+            "vacancy_pct": pd.to_numeric(row.get("Vacancy rate"), errors='coerce'),
+            "demand_supply_ratio": pd.to_numeric(row.get("Demand to Supply Ratio"), errors='coerce'),
+            "stock_on_market_pct": pd.to_numeric(row.get("Percent stock on market"), errors='coerce'),
+            "days_on_market": pd.to_numeric(str(row.get("Days on market", "")).replace("days", ""), errors='coerce'),
+            "auction_clearance_pct": pd.to_numeric(row.get("Auction clearance rate"), errors='coerce'),
+            "vendor_discount_pct": pd.to_numeric(row.get("Avg vendor discount"), errors='coerce'),
+            "online_search_index": pd.to_numeric(row.get("Online search interest"), errors='coerce'),
+            "median_12m_change": pd.to_numeric(row.get("Median 12 months"), errors='coerce'),
+            "statistical_reliability": pd.to_numeric(row.get("Statistical reliability"), errors='coerce'),
+            "gross_rental_yield": pd.to_numeric(row.get("Gross rental yield"), errors='coerce'),
+            "typical_value": pd.to_numeric(row.get("Typical value"), errors='coerce'),
         }
 
-        # ==================== LOGIC ENGINE ====================
-        rw_cagr = None  # Will be filled when growth scrapers are added
-        decision = "AVOID"
-        if all([
-            factors["renters_pct"] is not None and 15 <= factors["renters_pct"] <= 35,
-            factors["vacancy_pct"] is not None and factors["vacancy_pct"] < 2,
-            factors["demand_supply_ratio"] is not None and factors["demand_supply_ratio"] > 55,
-            factors["stock_on_market_pct"] is not None and factors["stock_on_market_pct"] < 1.3,
-            factors["gross_rental_yield"] is not None and factors["gross_rental_yield"] > 4,
-            factors["statistical_reliability"] is not None and factors["statistical_reliability"] > 51,
-        ]):
-            decision = "BUY"
+        # ==================== BUY GATES (tolerant version) ====================
+        gates_passed = True
+        failed_gates = []
 
+        if factors["renters_pct"] is None or not (15 <= factors["renters_pct"] <= 35):
+            gates_passed = False
+            failed_gates.append("Renters %")
+        if factors["vacancy_pct"] is None or factors["vacancy_pct"] >= 2:
+            gates_passed = False
+            failed_gates.append("Vacancy")
+        if factors["demand_supply_ratio"] is None or factors["demand_supply_ratio"] <= 55:
+            gates_passed = False
+            failed_gates.append("DSR")
+        if factors["stock_on_market_pct"] is None or factors["stock_on_market_pct"] >= 1.3:
+            gates_passed = False
+            failed_gates.append("Stock on market")
+        if factors["gross_rental_yield"] is None or factors["gross_rental_yield"] <= 0.04:   # 4% = 0.04
+            gates_passed = False
+            failed_gates.append("Gross Yield")
+        if factors["statistical_reliability"] is None or factors["statistical_reliability"] <= 51:
+            gates_passed = False
+            failed_gates.append("Reliability")
+
+        decision = "BUY" if gates_passed else "AVOID"
         confidence_score = 85 if decision == "BUY" else 60
         confidence_band = "High" if confidence_score >= 75 else "Medium"
 
@@ -78,18 +62,19 @@ if uploaded_file:
         if decision == "BUY":
             explanation += "Meets all core eligibility gates."
         else:
-            explanation += "Failed one or more core eligibility gates."
+            explanation += f"Failed gates: {', '.join(failed_gates)}"
 
         results.append({
             "Suburb": row["Suburb"],
             "Decision": decision,
             "Confidence": confidence_band,
             "Confidence Score": confidence_score,
-            "RW-CAGR": rw_cagr,
+            "RW-CAGR": None,
             "Explanation": explanation,
             "Demand to Supply Ratio": factors["demand_supply_ratio"],
             "Vacancy %": factors["vacancy_pct"],
-            "Gross Yield %": factors["gross_rental_yield"]
+            "Gross Yield %": factors["gross_rental_yield"],
+            "Failed Gates": ", ".join(failed_gates) if failed_gates else "None"
         })
 
     # ====================== DISPLAY ======================
@@ -105,6 +90,4 @@ if uploaded_file:
 
     output = BytesIO()
     summary_df.to_excel(output, index=False)
-    st.download_button("⬇️ Download Full Analysis", output.getvalue(), "Property_Investment_Accelerator_Results.xlsx")
-
-    st.info("✅ Mapping fixed. More scrapers (SQM, HTAG, OnTheHouse, AreaSearch) will be added next.")
+    st.download_button("⬇️ Download Full Analysis", output.getvalue(), "Accelerator_Results.xlsx")
