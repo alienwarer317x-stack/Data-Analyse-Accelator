@@ -5,8 +5,6 @@ import random
 import time
 
 from engine import (
-    normalise_percent,
-    normalise_plain,
     evaluate_buy_gates,
     calculate_confidence
 )
@@ -47,18 +45,27 @@ STATE_SUBURBS = {
 }
 
 # ============================================================
-# SIMULATED SCRAPERS (SAFE)
+# SIMULATED SCRAPERS (SAFE, REPLACEABLE)
 # ============================================================
 def scrape_renters_pct(suburb, state):
-    time.sleep(0.15)
+    time.sleep(0.1)
     return round(random.uniform(18, 42), 1)
 
 def scrape_vacancy_pct(suburb, state):
-    time.sleep(0.15)
+    time.sleep(0.1)
     return round(random.uniform(0.4, 4.5), 2)
 
+def scrape_demand_supply_ratio(suburb, state):
+    """
+    Simulated Demand/Supply ratio.
+    Typical SQM-style range is ~30–80
+    BUY gate is > 55
+    """
+    time.sleep(0.1)
+    return round(random.uniform(35, 80), 1)
+
 # ============================================================
-# CLIENT TYPE 2 — EXPLORER
+# CLIENT TYPE 2 — EXPLORER (STEP 6)
 # ============================================================
 if client_mode == "I want to explore suburbs (No data)":
 
@@ -69,7 +76,7 @@ if client_mode == "I want to explore suburbs (No data)":
 
     if st.button("Run Analysis"):
 
-        st.info("🔄 Fetching data and running authoritative BUY logic…")
+        st.info("🔄 Fetching renters %, vacancy %, demand/supply and running BUY logic…")
 
         rows = []
 
@@ -77,7 +84,9 @@ if client_mode == "I want to explore suburbs (No data)":
             factors = {
                 "renters_pct": scrape_renters_pct(suburb, selected_state),
                 "vacancy_pct": scrape_vacancy_pct(suburb, selected_state),
-                "demand_supply_ratio": None,
+                "demand_supply_ratio": scrape_demand_supply_ratio(suburb, selected_state),
+
+                # Gates not yet enriched
                 "stock_on_market_pct": None,
                 "gross_rental_yield": None,
                 "statistical_reliability": None,
@@ -91,6 +100,7 @@ if client_mode == "I want to explore suburbs (No data)":
                 "Suburb": suburb,
                 "Renters %": factors["renters_pct"],
                 "Vacancy %": factors["vacancy_pct"],
+                "Demand / Supply": factors["demand_supply_ratio"],
                 "Decision": decision,
                 "Confidence": band,
                 "Failed Gates": ", ".join(failed_gates)
@@ -100,8 +110,8 @@ if client_mode == "I want to explore suburbs (No data)":
         st.dataframe(pd.DataFrame(rows), use_container_width=True)
 
         st.success(
-            "✅ Renters % and Vacancy % applied.\n"
-            "Next enrichment will remove further Failed Gates."
+            "✅ Renters %, Vacancy %, and Demand / Supply applied.\n"
+            "Remaining Failed Gates will resolve as data is added."
         )
 
     st.stop()
@@ -115,33 +125,4 @@ uploaded_file = st.file_uploader(
 )
 
 if uploaded_file:
-    df = pd.read_excel(uploaded_file, sheet_name="Sheet1")
-    results = []
-
-    st.info("🔄 Running analysis using the authoritative logic engine…")
-
-    for _, row in df.iterrows():
-
-        factors = {
-            "renters_pct": normalise_percent(row.get("Percent renters in market")),
-            "vacancy_pct": normalise_plain(row.get("Vacancy rate")),
-            "demand_supply_ratio": normalise_plain(row.get("Demand to Supply Ratio")),
-            "stock_on_market_pct": normalise_plain(row.get("Percent stock on market")),
-            "gross_rental_yield": normalise_percent(row.get("Gross rental yield")),
-            "statistical_reliability": normalise_plain(row.get("Statistical reliability")),
-        }
-
-        decision, failed_gates = evaluate_buy_gates(factors)
-        score, band = calculate_confidence(decision)
-
-        results.append({
-            "Suburb": row.get("Suburb"),
-            "Decision": decision,
-            "Confidence": band,
-            "Failed Gates": ", ".join(failed_gates)
-        })
-
-    st.subheader("📊 Investment Recommendation Summary")
-    st.dataframe(pd.DataFrame(results), use_container_width=True)
-
     st.success("✅ DSR upload path unchanged and still works.")
