@@ -7,7 +7,6 @@ st.title("🏠 Property Investment Accelerator Matcher")
 st.subheader("Cleaned & Fixed Logic Engine (v5 – Locked)")
 
 # ====================== HELPER FUNCTIONS ======================
-
 def normalise_percent(val):
     if pd.isna(val):
         return None
@@ -26,7 +25,6 @@ def normalise_plain(val):
         return None
 
 # ====================== MAIN APP ======================
-
 uploaded_file = st.file_uploader("Upload your DSR Excel file", type=["xlsx"])
 
 if uploaded_file:
@@ -36,7 +34,6 @@ if uploaded_file:
     st.info("🔄 Running analysis with locked authoritative logic engine...")
 
     for _, row in df.iterrows():
-
         # -------- FACTOR MAPPING --------
         factors = {
             "renters_pct": normalise_percent(row.get("Percent renters in market")),
@@ -49,7 +46,6 @@ if uploaded_file:
 
         # -------- BUY GATES --------
         failed_gates = []
-
         if factors["renters_pct"] is None or not (15 <= factors["renters_pct"] <= 35):
             failed_gates.append("Renters %")
         if factors["vacancy_pct"] is None or factors["vacancy_pct"] >= 2:
@@ -64,7 +60,6 @@ if uploaded_file:
             failed_gates.append("Reliability")
 
         decision = "BUY" if not failed_gates else "AVOID"
-
         confidence_score = 85 if decision == "BUY" else 60
         confidence_band = "High" if confidence_score >= 75 else "Medium"
 
@@ -106,7 +101,4 @@ if uploaded_file:
         "⬇️ Download Full Analysis",
         output.getvalue(),
         "Property_Investment_Accelerator_Results.xlsx"
-    )
-
-    st.info("✅ Logic engine locked. Results are now data-dependent, not code-dependent.")
-``
+   
