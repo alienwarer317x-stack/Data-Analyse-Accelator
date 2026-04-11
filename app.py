@@ -4,6 +4,13 @@ from io import BytesIO
 import random
 import time
 
+from engine import (
+    normalise_percent,
+    normalise_plain,
+    evaluate_buy_gates,
+    calculate_confidence
+)
+
 # ============================================================
 # APP SETUP
 # ============================================================
@@ -16,7 +23,7 @@ st.title("🏠 Property Investment Accelerator")
 st.subheader("Authoritative Logic Engine · Dual Client Mode")
 
 # ============================================================
-# CLIENT TYPE SELECTION — STEP 1
+# CLIENT TYPE SELECTION
 # ============================================================
 st.markdown("### Choose how you want to use the Accelerator")
 
@@ -29,7 +36,7 @@ client_mode = st.radio(
 )
 
 # ============================================================
-# STEP 2 — STATIC SUBURB LISTS
+# STATIC SUBURB LISTS
 # ============================================================
 STATE_SUBURBS = {
     "NSW": ["Aberdeen", "Tamworth", "Wagga Wagga", "Maitland", "Cessnock"],
@@ -40,41 +47,18 @@ STATE_SUBURBS = {
 }
 
 # ============================================================
-# HELPER FUNCTIONS — LOGIC (LOCKED)
-# ============================================================
-def passes_buy_gates(factors):
-    failures = []
-
-    if factors.get("renters_pct") is None or not (15 <= factors["renters_pct"] <= 35):
-        failures.append("Renters %")
-
-    if factors.get("vacancy_pct") is None or factors["vacancy_pct"] >= 2:
-        failures.append("Vacancy")
-
-    # Gates not yet enriched
-    failures.append("Demand / Supply")
-    failures.append("Stock on Market")
-    failures.append("Gross Yield")
-    failures.append("Reliability")
-
-    return failures
-
-# ============================================================
-# STEP 3 — RENTERS % SCRAPER (SIMULATED)
+# SIMULATED SCRAPERS (SAFE)
 # ============================================================
 def scrape_renters_pct(suburb, state):
-    time.sleep(0.2)
+    time.sleep(0.15)
     return round(random.uniform(18, 42), 1)
 
-# ============================================================
-# STEP 4 — VACANCY % SCRAPER (SIMULATED)
-# ============================================================
 def scrape_vacancy_pct(suburb, state):
-    time.sleep(0.2)
+    time.sleep(0.15)
     return round(random.uniform(0.4, 4.5), 2)
 
 # ============================================================
-# CLIENT TYPE 2 — EXPLORE BY STATE (STEP 4)
+# CLIENT TYPE 2 — EXPLORER
 # ============================================================
 if client_mode == "I want to explore suburbs (No data)":
 
@@ -85,39 +69,39 @@ if client_mode == "I want to explore suburbs (No data)":
 
     if st.button("Run Analysis"):
 
-        st.info("🔄 Fetching renters % + vacancy % and running BUY‑gate logic…")
+        st.info("🔄 Fetching data and running authoritative BUY logic…")
 
-        results = []
+        rows = []
 
         for suburb in suburbs:
-            renters_pct = scrape_renters_pct(suburb, selected_state)
-            vacancy_pct = scrape_vacancy_pct(suburb, selected_state)
-
             factors = {
-                "renters_pct": renters_pct,
-                "vacancy_pct": vacancy_pct
+                "renters_pct": scrape_renters_pct(suburb, selected_state),
+                "vacancy_pct": scrape_vacancy_pct(suburb, selected_state),
+                "demand_supply_ratio": None,
+                "stock_on_market_pct": None,
+                "gross_rental_yield": None,
+                "statistical_reliability": None,
             }
 
-            failed_gates = passes_buy_gates(factors)
-            decision = "BUY" if len(failed_gates) == 0 else "AVOID"
+            decision, failed_gates = evaluate_buy_gates(factors)
+            score, band = calculate_confidence(decision)
 
-            results.append({
+            rows.append({
                 "State": selected_state,
                 "Suburb": suburb,
-                "Renters %": renters_pct,
-                "Vacancy %": vacancy_pct,
+                "Renters %": factors["renters_pct"],
+                "Vacancy %": factors["vacancy_pct"],
                 "Decision": decision,
+                "Confidence": band,
                 "Failed Gates": ", ".join(failed_gates)
             })
 
-        result_df = pd.DataFrame(results)
-
         st.subheader("📊 Explorer Results (Partial Data)")
-        st.dataframe(result_df, use_container_width=True)
+        st.dataframe(pd.DataFrame(rows), use_container_width=True)
 
         st.success(
-            "✅ Renters % and Vacancy % applied.\n\n"
-            "Next steps will remove remaining Failed Gates as data is added."
+            "✅ Renters % and Vacancy % applied.\n"
+            "Next enrichment will remove further Failed Gates."
         )
 
     st.stop()
@@ -131,4 +115,33 @@ uploaded_file = st.file_uploader(
 )
 
 if uploaded_file:
+    df = pd.read_excel(uploaded_file, sheet_name="Sheet1")
+    results = []
+
+    st.info("🔄 Running analysis using the authoritative logic engine…")
+
+    for _, row in df.iterrows():
+
+        factors = {
+            "renters_pct": normalise_percent(row.get("Percent renters in market")),
+            "vacancy_pct": normalise_plain(row.get("Vacancy rate")),
+            "demand_supply_ratio": normalise_plain(row.get("Demand to Supply Ratio")),
+            "stock_on_market_pct": normalise_plain(row.get("Percent stock on market")),
+            "gross_rental_yield": normalise_percent(row.get("Gross rental yield")),
+            "statistical_reliability": normalise_plain(row.get("Statistical reliability")),
+        }
+
+        decision, failed_gates = evaluate_buy_gates(factors)
+        score, band = calculate_confidence(decision)
+
+        results.append({
+            "Suburb": row.get("Suburb"),
+            "Decision": decision,
+            "Confidence": band,
+            "Failed Gates": ", ".join(failed_gates)
+        })
+
+    st.subheader("📊 Investment Recommendation Summary")
+    st.dataframe(pd.DataFrame(results), use_container_width=True)
+
     st.success("✅ DSR upload path unchanged and still works.")
