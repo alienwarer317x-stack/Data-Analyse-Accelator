@@ -14,7 +14,7 @@ st.title("🏠 Property Investment Accelerator")
 st.subheader("Authoritative Logic Engine · Dual Client Mode")
 
 # ============================================================
-# CLIENT TYPE SELECTION (STEP 1)
+# CLIENT TYPE SELECTION
 # ============================================================
 st.markdown("### Choose how you want to use the Accelerator")
 
@@ -27,36 +27,16 @@ client_mode = st.radio(
 )
 
 # ============================================================
-# HELPER FUNCTIONS
+# STEP 2 — STATIC SUBURB LISTS (NO SCRAPING)
 # ============================================================
 
-def normalise_percent(val):
-    """
-    Handles:
-    0.24  -> 24
-    24    -> 24
-    '24%' -> 24
-    """
-    if pd.isna(val):
-        return None
-    try:
-        val = float(str(val).replace("%", "").strip())
-        return val * 100 if val <= 1 else val
-    except:
-        return None
-
-def normalise_plain(val):
-    """
-    Handles values already in % or index form:
-    Vacancy %, Stock %, Demand/Supply
-    """
-    if pd.isna(val):
-        return None
-    try:
-        return float(str(val).replace("%", "").strip())
-    except:
-        return None
-
-# ============================================================
-# CLIENT TYPE 2 — STATE SELECTION (NO SCRAPING YET)
-# ============================================================
+STATE_SUBURBS = {
+    "NSW": [
+        "Aberdeen", "Tamworth", "Wagga Wagga", "Maitland",
+        "Cessnock", "Albury", "Armidale", "Dubbo"
+    ],
+    "VIC": [
+        "Ballarat", "Bendigo", "Geelong", "Shepparton",
+        "Mildura", "Traralgon"
+    ],
+    "QLD": [
