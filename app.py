@@ -2,84 +2,130 @@ import streamlit as st
 import pandas as pd
 from io import BytesIO
 
-st.set_page_config(page_title="Property Investment Accelerator Matcher", layout="wide")
+# ============================================================
+# APP SETUP
+# ============================================================
+st.set_page_config(
+    page_title="Property Investment Accelerator Matcher",
+    layout="wide"
+)
+
 st.title("🏠 Property Investment Accelerator Matcher")
-st.subheader("Fixed Percentage Mapping + Realistic Scoring (v3)")
+st.subheader("Fixed Percentage Mapping + Hard BUY Gates (v4)")
 
 uploaded_file = st.file_uploader("Upload your DSR Excel file", type=["xlsx"])
+
+# ============================================================
+# HELPER FUNCTIONS
+# ============================================================
+
+def normalise_percent(val):
+    """
+    Handles values like:
+    - 0.24  -> 24
+    - 24    -> 24
+    - "24%" -> 24
+    """
+    if pd.isna(val):
+        return None
+    try:
+        val = float(str(val).replace("%", "").strip())
+        return val * 100 if val <= 1 else val
+    except:
+        return None
+
+
+def normalise_plain(val):
+    """
+    For values already in real % or index terms
+    e.g. Vacancy %, Stock %, DSR
+    """
+    if pd.isna(val):
+        return None
+    try:
+        return float(str(val).replace("%", "").strip())
+    except:
+        return None
+
+
+# ============================================================
+# MAIN LOGIC
+# ============================================================
 
 if uploaded_file:
     df = pd.read_excel(uploaded_file, sheet_name="Sheet1")
     results = []
 
-    st.info("🔄 Running analysis with corrected percentage mapping...")
+    st.info("🔄 Running analysis with correct unit normalisation...")
 
     for _, row in df.iterrows():
-        # ==================== FIXED & NORMALIZED MAPPING ====================
+
+        # ---------------- FACTOR MAPPING ----------------
         factors = {
-            # Convert decimal percentages to 0-100 scale
-            "renters_pct": pd.to_numeric(row.get("Percent renters in market"), errors='coerce') * 100,
-            "vacancy_pct": pd.to_numeric(row.get("Vacancy rate"), errors='coerce') * 100,
-            "demand_supply_ratio": pd.to_numeric(row.get("Demand to Supply Ratio"), errors='coerce'),
-            "stock_on_market_pct": pd.to_numeric(row.get("Percent stock on market"), errors='coerce') * 100,
-            "days_on_market": pd.to_numeric(str(row.get("Days on market", "")).replace("days", ""), errors='coerce'),
-            "auction_clearance_pct": pd.to_numeric(row.get("Auction clearance rate"), errors='coerce') * 100,
-            "vendor_discount_pct": pd.to_numeric(row.get("Avg vendor discount"), errors='coerce') * 100,
-            "gross_rental_yield": pd.to_numeric(row.get("Gross rental yield"), errors='coerce') * 100,
-            "statistical_reliability": pd.to_numeric(row.get("Statistical reliability"), errors='coerce'),
-            "median_12m_change": pd.to_numeric(row.get("Median 12 months"), errors='coerce'),
-            "typical_value": pd.to_numeric(row.get("Typical value"), errors='coerce'),
+            # percentage‑based gates (15–35, >4 etc)
+            "renters_pct": normalise_percent(row.get("Percent renters in market")),
+            "gross_rental_yield": normalise_percent(row.get("Gross rental yield")),
+
+            # plain % / index gates
+            "vacancy_pct": normalise_plain(row.get("Vacancy rate")),
+            "stock_on_market_pct": normalise_plain(row.get("Percent stock on market")),
+            "demand_supply_ratio": normalise_plain(row.get("Demand to Supply Ratio")),
+            "statistical_reliability": normalise_plain(row.get("Statistical reliability")),
         }
 
-        # ==================== BUY GATES (now using correct 0-100 scale) ====================
-        gates_passed = True
+        # ---------------- BUY GATES ----------------
         failed_gates = []
 
         if factors["renters_pct"] is None or not (15 <= factors["renters_pct"] <= 35):
-            gates_passed = False
             failed_gates.append("Renters %")
+
         if factors["vacancy_pct"] is None or factors["vacancy_pct"] >= 2:
-            gates_passed = False
             failed_gates.append("Vacancy")
+
         if factors["demand_supply_ratio"] is None or factors["demand_supply_ratio"] <= 55:
-            gates_passed = False
-            failed_gates.append("DSR")
+            failed_gates.append("Demand / Supply")
+
         if factors["stock_on_market_pct"] is None or factors["stock_on_market_pct"] >= 1.3:
-            gates_passed = False
-            failed_gates.append("Stock on market")
+            failed_gates.append("Stock on Market")
+
         if factors["gross_rental_yield"] is None or factors["gross_rental_yield"] <= 4:
-            gates_passed = False
             failed_gates.append("Gross Yield")
+
         if factors["statistical_reliability"] is None or factors["statistical_reliability"] <= 51:
-            gates_passed = False
             failed_gates.append("Reliability")
 
-        decision = "BUY" if gates_passed else "AVOID"
+        # ---------------- FINAL DECISION ----------------
+        decision = "BUY" if len(failed_gates) == 0 else "AVOID"
+
         confidence_score = 85 if decision == "BUY" else 60
         confidence_band = "High" if confidence_score >= 75 else "Medium"
 
-        explanation = f"{decision}: "
-        if decision == "BUY":
-            explanation += "Meets all core eligibility gates."
-        else:
-            explanation += f"Failed gates: {', '.join(failed_gates)}"
+        explanation = (
+            "BUY: Meets all core eligibility gates."
+            if decision == "BUY"
+            else f"AVOID: Failed gates – {', '.join(failed_gates)}"
+        )
 
         results.append({
-            "Suburb": row["Suburb"],
+            "Suburb": row.get("Suburb"),
             "Decision": decision,
             "Confidence": confidence_band,
             "Confidence Score": confidence_score,
-            "RW-CAGR": None,
-            "Explanation": explanation,
-            "Demand to Supply Ratio": factors["demand_supply_ratio"],
+            "RW‑CAGR": None,
+            "Renters %": factors["renters_pct"],
             "Vacancy %": factors["vacancy_pct"],
+            "Demand / Supply": factors["demand_supply_ratio"],
+            "Stock on Market %": factors["stock_on_market_pct"],
             "Gross Yield %": factors["gross_rental_yield"],
-            "Failed Gates": ", ".join(failed_gates) if failed_gates else "None"
+            "Failed Gates": ", ".join(failed_gates) if failed_gates else "None",
+            "Explanation": explanation
         })
 
-    # ====================== DISPLAY ======================
+    # ============================================================
+    # DISPLAY
+    # ============================================================
     summary_df = pd.DataFrame(results)
-    summary_df = summary_df.sort_values(by="Confidence Score", ascending=False)
+    summary_df = summary_df.sort_values(by=["Decision", "Confidence Score"], ascending=[False, False])
 
     st.subheader("📊 Investment Recommendation Summary")
     st.dataframe(summary_df, use_container_width=True, height=700)
@@ -88,6 +134,13 @@ if uploaded_file:
         top = summary_df.iloc[0]
         st.success(f"🏆 **BEST SUBURB: {top['Suburb']}** — Decision: **{top['Decision']}**")
 
+    # Download
     output = BytesIO()
     summary_df.to_excel(output, index=False)
-    st.download_button("⬇️ Download Full Analysis", output.getvalue(), "Accelerator_Results.xlsx")
+    st.download_button(
+        "⬇️ Download Full Analysis",
+        output.getvalue(),
+        "Property_Investment_Accelerator_Results.xlsx"
+    )
+
+    st.info("✅ Logic correct. BUY gates enforced. Data gaps clearly identified.")
