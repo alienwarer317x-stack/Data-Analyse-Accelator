@@ -4,7 +4,7 @@ from io import BytesIO
 
 st.set_page_config(page_title="Property Investment Accelerator Matcher", layout="wide")
 st.title("🏠 Property Investment Accelerator Matcher")
-st.subheader("Fixed Mapping + Realistic Scoring (v2)")
+st.subheader("Fixed Percentage Mapping + Realistic Scoring (v3)")
 
 uploaded_file = st.file_uploader("Upload your DSR Excel file", type=["xlsx"])
 
@@ -12,26 +12,26 @@ if uploaded_file:
     df = pd.read_excel(uploaded_file, sheet_name="Sheet1")
     results = []
 
-    st.info("🔄 Running analysis with improved DSR mapping...")
+    st.info("🔄 Running analysis with corrected percentage mapping...")
 
     for _, row in df.iterrows():
-        # ==================== IMPROVED DSR MAPPING ====================
+        # ==================== FIXED & NORMALIZED MAPPING ====================
         factors = {
-            "renters_pct": pd.to_numeric(row.get("Percent renters in market"), errors='coerce'),
-            "vacancy_pct": pd.to_numeric(row.get("Vacancy rate"), errors='coerce'),
+            # Convert decimal percentages to 0-100 scale
+            "renters_pct": pd.to_numeric(row.get("Percent renters in market"), errors='coerce') * 100,
+            "vacancy_pct": pd.to_numeric(row.get("Vacancy rate"), errors='coerce') * 100,
             "demand_supply_ratio": pd.to_numeric(row.get("Demand to Supply Ratio"), errors='coerce'),
-            "stock_on_market_pct": pd.to_numeric(row.get("Percent stock on market"), errors='coerce'),
+            "stock_on_market_pct": pd.to_numeric(row.get("Percent stock on market"), errors='coerce') * 100,
             "days_on_market": pd.to_numeric(str(row.get("Days on market", "")).replace("days", ""), errors='coerce'),
-            "auction_clearance_pct": pd.to_numeric(row.get("Auction clearance rate"), errors='coerce'),
-            "vendor_discount_pct": pd.to_numeric(row.get("Avg vendor discount"), errors='coerce'),
-            "online_search_index": pd.to_numeric(row.get("Online search interest"), errors='coerce'),
-            "median_12m_change": pd.to_numeric(row.get("Median 12 months"), errors='coerce'),
+            "auction_clearance_pct": pd.to_numeric(row.get("Auction clearance rate"), errors='coerce') * 100,
+            "vendor_discount_pct": pd.to_numeric(row.get("Avg vendor discount"), errors='coerce') * 100,
+            "gross_rental_yield": pd.to_numeric(row.get("Gross rental yield"), errors='coerce') * 100,
             "statistical_reliability": pd.to_numeric(row.get("Statistical reliability"), errors='coerce'),
-            "gross_rental_yield": pd.to_numeric(row.get("Gross rental yield"), errors='coerce'),
+            "median_12m_change": pd.to_numeric(row.get("Median 12 months"), errors='coerce'),
             "typical_value": pd.to_numeric(row.get("Typical value"), errors='coerce'),
         }
 
-        # ==================== BUY GATES (tolerant version) ====================
+        # ==================== BUY GATES (now using correct 0-100 scale) ====================
         gates_passed = True
         failed_gates = []
 
@@ -47,7 +47,7 @@ if uploaded_file:
         if factors["stock_on_market_pct"] is None or factors["stock_on_market_pct"] >= 1.3:
             gates_passed = False
             failed_gates.append("Stock on market")
-        if factors["gross_rental_yield"] is None or factors["gross_rental_yield"] <= 0.04:   # 4% = 0.04
+        if factors["gross_rental_yield"] is None or factors["gross_rental_yield"] <= 4:
             gates_passed = False
             failed_gates.append("Gross Yield")
         if factors["statistical_reliability"] is None or factors["statistical_reliability"] <= 51:
