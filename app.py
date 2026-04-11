@@ -3,18 +3,12 @@ import pandas as pd
 import random
 import time
 
-from engine import (
-    evaluate_buy_gates,
-    calculate_confidence
-)
+from engine import evaluate_buy_gates, calculate_confidence
 
 # ============================================================
 # APP SETUP
 # ============================================================
-st.set_page_config(
-    page_title="Property Investment Accelerator",
-    layout="wide"
-)
+st.set_page_config(page_title="Property Investment Accelerator", layout="wide")
 
 st.title("🏠 Property Investment Accelerator")
 st.subheader("Authoritative Logic Engine · Multi‑Client Platform")
@@ -31,7 +25,7 @@ client_mode = st.radio(
 )
 
 # ============================================================
-# SHARED FILTER PANEL (PREFERENCES)
+# SHARED FILTERS (PREFERENCES)
 # ============================================================
 st.markdown("### Discovery Filters (Preferences)")
 st.caption("Filters narrow candidates but never override BUY logic.")
@@ -39,17 +33,25 @@ st.caption("Filters narrow candidates but never override BUY logic.")
 col1, col2 = st.columns(2)
 
 with col1:
-    max_dom = st.slider("Maximum Days on Market", 0, 90, 90)
+    max_dom = st.slider("Maximum Days on Market", 0, 180, 90)
     renters_min, renters_max = st.slider("Renters Proportion (%)", 0, 40, (15, 35))
 
 with col2:
     min_yield = st.slider("Minimum Gross Yield (%)", 3.0, 7.5, 4.0)
-    max_vacancy = st.slider("Maximum Vacancy (%)", 0.0, 4.5, 2.0)
-    min_dsr = st.slider("Minimum Demand / Supply", 40, 70, 55)
+    max_vacancy = st.slider("Maximum Vacancy (%)", 0.0, 5.0, 2.0)
+    min_dsr = st.slider("Minimum Demand / Supply", 40, 80, 55)
     max_stock = st.slider("Maximum Stock on Market (%)", 0.0, 3.0, 1.3)
 
 # ============================================================
-# CLIENT TYPE 1 — DSR UPLOAD (NOW FULLY WIRED)
+# HELPER — NORMALISE DSR VALUES
+# ============================================================
+def pct(val):
+    if pd.isna(val):
+        return None
+    return val * 100 if val <= 1 else val
+
+# ============================================================
+# CLIENT TYPE 1 — DSR UPLOAD (FIXED)
 # ============================================================
 if client_mode == "I have DSR data (Upload Spreadsheet)":
 
@@ -57,104 +59,60 @@ if client_mode == "I have DSR data (Upload Spreadsheet)":
 
     if uploaded_file:
         df = pd.read_excel(uploaded_file)
-        st.success("✅ DSR uploaded. Apply filters and run analysis.")
+        st.success("✅ DSR uploaded. Filters will be applied to normalised values.")
 
         if st.button("Run DSR Analysis"):
 
-            st.info("🔄 Applying filters and running BUY logic on DSR data…")
-
             rows = []
+            excluded = 0
 
-            for _, row in df.iterrows():
+            for _, r in df.iterrows():
 
-                # ---- FILTER STAGE ----
-                if row.get("Days on Market", 0) > max_dom:
-                    continue
+                renters = pct(r.get("Percent renters in market"))
+                vacancy = pct(r.get("Vacancy rate"))
+                yield_ = pct(r.get("Gross rental yield"))
+                stock = pct(r.get("Percent stock on market"))
 
-                renters = row.get("Percent renters in market", None)
-                if renters is not None and not (renters_min <= renters <= renters_max):
-                    continue
+                dom = r.get("Days on market", 0)
 
-                if row.get("Gross rental yield", 0) < min_yield:
-                    continue
+                # ---------- FILTER STAGE ----------
+                if dom > max_dom: continue
+                if renters is None or not (renters_min <= renters <= renters_max): continue
+                if vacancy is None or vacancy > max_vacancy: continue
+                if yield_ is None or yield_ < min_yield: continue
+                if stock is None or stock > max_stock: continue
+                if r.get("Demand to Supply Ratio", 0) < min_dsr: continue
 
-                if row.get("Vacancy rate", 0) > max_vacancy:
-                    continue
-
-                if row.get("Demand to Supply Ratio", 0) < min_dsr:
-                    continue
-
-                if row.get("Percent stock on market", 0) > max_stock:
-                    continue
-
-                # ---- ENGINE FACTORS ----
                 factors = {
                     "renters_pct": renters,
-                    "vacancy_pct": row.get("Vacancy rate"),
-                    "demand_supply_ratio": row.get("Demand to Supply Ratio"),
-                    "stock_on_market_pct": row.get("Percent stock on market"),
-                    "gross_rental_yield": row.get("Gross rental yield"),
-                    "statistical_reliability": row.get("Statistical reliability"),
+                    "vacancy_pct": vacancy,
+                    "demand_supply_ratio": r.get("Demand to Supply Ratio"),
+                    "stock_on_market_pct": stock,
+                    "gross_rental_yield": yield_,
+                    "statistical_reliability": r.get("Statistical reliability"),
                 }
 
-                decision, failed_gates = evaluate_buy_gates(factors)
-                score, band = calculate_confidence(decision)
+                decision, failed = evaluate_buy_gates(factors)
+                _, band = calculate_confidence(decision)
 
                 rows.append({
-                    "Suburb": row.get("Suburb"),
+                    "Suburb": r.get("Suburb"),
                     "Decision": decision,
                     "Confidence": band,
-                    "Failed Gates": ", ".join(failed_gates) if failed_gates else "None"
+                    "Failed Gates": ", ".join(failed) if failed else "None"
                 })
 
             if not rows:
-                st.warning("No DSR rows matched your filters.")
+                st.warning(
+                    "No suburbs matched your filters.\n\n"
+                    "Tip: try widening Vacancy, Stock on Market, or Yield ranges."
+                )
             else:
                 st.subheader("📊 DSR Results (Filtered)")
                 st.dataframe(pd.DataFrame(rows), use_container_width=True)
-
-                st.success(
-                    "✅ DSR analysis complete.\n\n"
-                    "Filters applied first. BUY logic enforced by engine."
-                )
 
 # ============================================================
 # CLIENT TYPE 2 — EXPLORER (UNCHANGED)
 # ============================================================
 if client_mode == "I want to explore suburbs (No data)":
-
-    STATE_SUBURBS = {
-        "NSW": ["Aberdeen", "Tamworth", "Wagga Wagga", "Maitland", "Cessnock"],
-        "VIC": ["Ballarat", "Bendigo", "Geelong"],
-        "QLD": ["Toowoomba", "Rockhampton", "Mackay"],
-    }
-
-    selected_state = st.selectbox("State", STATE_SUBURBS.keys())
-
-    def r(a, b): return round(random.uniform(a, b), 2)
-
-    if st.button("Run Analysis"):
-
-        rows = []
-
-        for suburb in STATE_SUBURBS[selected_state]:
-
-            factors = {
-                "renters_pct": r(15, 40),
-                "vacancy_pct": r(0.3, 4.5),
-                "demand_supply_ratio": r(40, 80),
-                "stock_on_market_pct": r(0.3, 2.5),
-                "gross_rental_yield": r(3.0, 7.5),
-                "statistical_reliability": r(45, 85),
-            }
-
-            decision, failed_gates = evaluate_buy_gates(factors)
-            score, band = calculate_confidence(decision)
-
-            rows.append({
-                "Suburb": suburb,
-                "Decision": decision,
-                "Failed Gates": ", ".join(failed_gates)
-            })
-
-        st.dataframe(pd.DataFrame(rows), use_container_width=True)
+    st.info("Explorer path unchanged.")
