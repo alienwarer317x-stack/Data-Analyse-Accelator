@@ -33,11 +33,11 @@ client_mode = st.radio(
 )
 
 # ============================================================
-# STAGE 1 — DISCOVERY FILTERS (LOCKED)
+# STAGE 1 — DISCOVERY FILTERS (NO LOGIC)
 # ============================================================
 st.markdown("## 🟩 Stage 1 — Discovery Filters (Preferences Only)")
 st.caption(
-    "Neutral discovery only. No engine logic or BUY rules are applied here."
+    "Discovery only. No investment logic, scoring, or BUY rules are applied."
 )
 
 col1, col2 = st.columns(2)
@@ -47,7 +47,10 @@ with col1:
         "State",
         ["All", "NSW", "VIC", "QLD", "TAS", "NT", "WA", "SA"]
     )
-    max_dom = st.slider("Maximum Days on Market", 0, 180, 90)
+    max_dom = st.slider(
+        "Maximum Days on Market",
+        0, 180, 90
+    )
 
 with col2:
     max_price = st.slider(
@@ -55,13 +58,9 @@ with col2:
         200_000, 2_000_000, 1_000_000,
         step=50_000
     )
-    min_yield = st.slider(
-        "Minimum Gross Rental Yield (%)",
-        3.0, 8.0, 4.0
-    )
 
 # ============================================================
-# APPLY / RESET BUTTONS
+# APPLY / RESET
 # ============================================================
 btn_apply, btn_reset = st.columns([1, 1])
 
@@ -73,7 +72,7 @@ if reset_clicked:
     st.session_state.selection_df = None
 
 # ============================================================
-# NORMALISATION HELPERS
+# HELPERS (NO ENGINE LOGIC)
 # ============================================================
 def normalise_plain(val):
     try:
@@ -95,9 +94,14 @@ def fmt_currency(val):
 # STAGE 1 — DISCOVERY (DSR UPLOAD)
 # ============================================================
 if client_mode == "DSR Upload":
-    uploaded_file = st.file_uploader("Upload your DSR Excel file", type=["xlsx"])
+
+    uploaded_file = st.file_uploader(
+        "Upload your DSR Excel file",
+        type=["xlsx"]
+    )
 
     if uploaded_file and apply_clicked:
+
         df = pd.read_excel(uploaded_file)
         discovered = []
 
@@ -113,7 +117,7 @@ if client_mode == "DSR Upload":
             )
             yld = normalise_percent(r.get("Gross rental yield"))
 
-            # ✅ LOCKED STAGE 1 FILTERS ONLY
+            # ✅ STAGE 1: STRUCTURAL FILTERS ONLY
             if dom is None or dom > max_dom:
                 continue
             if price is not None and price > max_price:
@@ -126,19 +130,19 @@ if client_mode == "DSR Upload":
                 "Median Price ($)": fmt_currency(price),
                 "Rental Yield (%)": round(yld, 2) if yld is not None else None,
                 "Days on Market": int(dom),
-                "_row": r
+                "_row": r  # kept ONLY for Stage 2
             })
 
         if discovered:
             st.session_state.discovery_df = pd.DataFrame(discovered)
             st.session_state.selection_df = st.session_state.discovery_df.copy()
         else:
-            st.warning(
-                "⚠️ No suburbs matched your discovery filters.\n\n"
-                "Try widening price or days‑on‑market ranges."
-            )
             st.session_state.discovery_df = None
             st.session_state.selection_df = None
+            st.warning(
+                "⚠️ No suburbs matched your discovery filters.\n\n"
+                "Try widening price or days‑on‑market."
+            )
 
 # ============================================================
 # STAGE 1 — DISCOVERY RESULTS (TABLE ONLY)
@@ -174,11 +178,13 @@ if st.session_state.selection_df is not None:
         st.markdown("## 🟥 Stage 2 — Deep Analysis (Authoritative Engine)")
 
         if st.button("Run Deep Analysis on Selected Suburbs"):
+
             results = []
 
             for _, r in selected_rows.iterrows():
                 row = r["_row"]
 
+                # ✅ ENGINE LOGIC — STAGE 2 ONLY
                 factors = {
                     "renters_pct": normalise_percent(row.get("Percent renters in market")),
                     "vacancy_pct": normalise_plain(row.get("Vacancy rate")),
