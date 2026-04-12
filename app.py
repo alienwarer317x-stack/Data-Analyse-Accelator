@@ -8,10 +8,14 @@ st.title("🏠 Property Investment Accelerator Matcher")
 st.subheader("Two‑Stage Discovery + Authoritative Logic Engine")
 
 # ====================== SESSION STATE ======================
-if "discovery_df" not in st.session_state:
-    st.session_state.discovery_df = None
-if "selected_suburbs" not in st.session_state:
-    st.session_state.selected_suburbs = set()
+if "dsr_discovery_df" not in st.session_state:
+    st.session_state.dsr_discovery_df = None
+if "explorer_discovery_df" not in st.session_state:
+    st.session_state.explorer_discovery_df = None
+if "dsr_selected_suburbs" not in st.session_state:
+    st.session_state.dsr_selected_suburbs = set()
+if "explorer_selected_suburbs" not in st.session_state:
+    st.session_state.explorer_selected_suburbs = set()
 
 # ====================== CLIENT MODE ======================
 client_mode = st.radio("Client Type", ("DSR Upload", "Explorer"), horizontal=True)
@@ -40,8 +44,10 @@ with col2:
     )
 # ====================== RESET BUTTON ======================
 if st.button("Reset"):
-    st.session_state.discovery_df = None
-    st.session_state.selected_suburbs = set()
+    st.session_state.dsr_discovery_df = None
+    st.session_state.explorer_discovery_df = None
+    st.session_state.dsr_selected_suburbs = set()
+    st.session_state.explorer_selected_suburbs = set()
 # ====================== NORMALISATION HELPERS ======================
 def normalise_plain(val):
     if pd.isna(val):
