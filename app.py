@@ -39,13 +39,8 @@ with col2:
         3.0, 8.0, 4.0
     )
 
-# ====================== APPLY + RESET BUTTONS ======================
-btn_apply, btn_reset = st.columns([1, 1])
-
-apply_clicked = btn_apply.button("Apply Discovery Filters")
-reset_clicked = btn_reset.button("Reset")
-
-if reset_clicked:
+# ====================== RESET BUTTON ======================
+if st.button("Reset"):
     st.session_state.discovery_df = None
     st.session_state.selected_suburbs = set()
 
@@ -70,7 +65,7 @@ def normalise_percent(val):
 # ====================== DSR UPLOAD MODE ======================
 if client_mode == "DSR Upload":
     uploaded_file = st.file_uploader("Upload your DSR Excel file", type=["xlsx"])
-    if uploaded_file and apply_clicked:
+    if uploaded_file and st.button("Apply Discovery Filters"):
         df = pd.read_excel(uploaded_file, sheet_name="Sheet1")
 
         discovered = []
@@ -106,7 +101,7 @@ if client_mode == "DSR Upload":
         st.session_state.discovery_df = pd.DataFrame(discovered)
 
 # ====================== EXPLORER MODE ======================
-if client_mode == "Explorer" and apply_clicked:
+if client_mode == "Explorer" and st.button("Apply Discovery Filters"):
     demo_data = [
         {
             "State": "NSW",
