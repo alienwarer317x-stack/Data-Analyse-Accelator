@@ -38,7 +38,10 @@ with col2:
         "Minimum Gross Rental Yield (%)",
         3.0, 8.0, 4.0
     )
-
+# ====================== RESET BUTTON ======================
+if st.button("Reset"):
+    st.session_state.discovery_df = None
+    st.session_state.selected_suburbs = set()
 # ====================== NORMALISATION HELPERS ======================
 def normalise_plain(val):
     if pd.isna(val):
