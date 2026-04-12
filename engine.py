@@ -1,75 +1,52 @@
-# engine.py
-# ============================================================
-# PROPERTY INVESTMENT ACCELERATOR — LOGIC ENGINE
-# ============================================================
-
-def normalise_percent(val):
-    """
-    Handles:
-    0.24  -> 24
-    24    -> 24
-    '24%' -> 24
-    """
-    if val is None:
-        return None
-    try:
-        val = float(str(val).replace("%", "").strip())
-        return val * 100 if val <= 1 else val
-    except:
-        return None
+def clamp(value, lower=0.0, upper=1.0):
+    return max(lower, min(value, upper))
 
 
-def normalise_plain(val):
+def calculate_demand_supply_ratio(
+    vacancy_pct: float,
+    stock_on_market_pct: float,
+    days_on_market: int,
+    dom_long_term_avg: int,
+    vacancy_upper_bound: float = 5.0,
+    som_upper_bound: float = 2.5
+) -> float:
     """
-    Handles index / real percentage scales
-    (vacancy %, stock %, demand-supply, reliability)
-    """
-    if val is None:
-        return None
-    try:
-        return float(str(val).replace("%", "").strip())
-    except:
-        return None
+    Returns a Demand–Supply Ratio score between 0 and 100.
 
-
-def evaluate_buy_gates(factors):
-    """
-    Core BUY gate logic.
-    Returns:
-      decision (BUY / AVOID)
-      failed_gates (list)
+    All inputs must be non-negative and already normalised by ingestion.
     """
 
-    failed_gates = []
+    # Defensive checks
+    if (
+        vacancy_pct is None or
+        stock_on_market_pct is None or
+        days_on_market is None or
+        dom_long_term_avg is None or
+        dom_long_term_avg <= 0
+    ):
+        return None  # upstream will handle confidence penalty
 
-    if factors.get("renters_pct") is None or not (15 <= factors["renters_pct"] <= 35):
-        failed_gates.append("Renters %")
+    # Vacancy (lower = better)
+    vacancy_score = clamp(
+        1 - (vacancy_pct / vacancy_upper_bound)
+    )
 
-    if factors.get("vacancy_pct") is None or factors["vacancy_pct"] >= 2:
-        failed_gates.append("Vacancy")
+    # Stock on market (lower = better)
+    som_score = clamp(
+        1 - (stock_on_market_pct / som_upper_bound)
+    )
 
-    if factors.get("demand_supply_ratio") is None or factors["demand_supply_ratio"] <= 55:
-        failed_gates.append("Demand / Supply")
+    # Days on market (relative measure)
+    dom_ratio = days_on_market / dom_long_term_avg
+    dom_score = clamp(
+        1 - dom_ratio
+    )
 
-    if factors.get("stock_on_market_pct") is None or factors["stock_on_market_pct"] >= 1.3:
-        failed_gates.append("Stock on Market")
+    # Weighted composite
+    raw_score = (
+        0.40 * vacancy_score +
+        0.35 * som_score +
+        0.25 * dom_score
+    )
 
-    if factors.get("gross_rental_yield") is None or factors["gross_rental_yield"] <= 4:
-        failed_gates.append("Gross Yield")
-
-    if factors.get("statistical_reliability") is None or factors["statistical_reliability"] <= 51:
-        failed_gates.append("Reliability")
-
-    decision = "BUY" if not failed_gates else "AVOID"
-
-    return decision, failed_gates
-
-
-def calculate_confidence(decision):
-    """
-    Simple, deterministic confidence logic.
-    Expanded later with coverage and reliability.
-    """
-    score = 85 if decision == "BUY" else 60
-    band = "High" if score >= 75 else "Medium"
-    return score, band
+    return round(raw_score * 100, 1)
