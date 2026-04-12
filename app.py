@@ -13,13 +13,16 @@ st.title("🏠 Property Investment Accelerator")
 st.subheader("Authoritative Logic Engine · Two‑Stage Discovery & Analysis")
 
 # ============================================================
-# SESSION STATE
+# SESSION STATE INITIALISATION
 # ============================================================
 if "discovery_df" not in st.session_state:
     st.session_state.discovery_df = None
 
 if "selected_suburbs" not in st.session_state:
     st.session_state.selected_suburbs = set()
+
+if "last_discovery_run" not in st.session_state:
+    st.session_state.last_discovery_run = False
 
 # ============================================================
 # CLIENT TYPE SELECTION
@@ -32,7 +35,7 @@ client_mode = st.radio(
 )
 
 # ============================================================
-# STAGE 1 — DISCOVERY FILTERS (PREFERENCES ONLY)
+# STAGE 1 — DISCOVERY FILTERS
 # ============================================================
 st.markdown("## 🟩 Stage 1 — Discovery Filters (Preferences)")
 st.caption("These filters narrow the universe only. No investment logic is applied.")
@@ -53,7 +56,16 @@ with col2:
     min_yield = st.slider("Minimum Gross Yield (%)", 3.0, 8.0, 4.0)
 
 # ============================================================
-# HELPER FUNCTIONS
+# RESET FILTERS
+# ============================================================
+if st.button("Reset Discovery Filters"):
+    st.session_state.discovery_df = None
+    st.session_state.selected_suburbs = set()
+    st.session_state.last_discovery_run = False
+    st.experimental_set_query_params()
+
+# ============================================================
+# HELPERS
 # ============================================================
 def pct(val):
     try:
@@ -87,14 +99,17 @@ def pick_yield(row):
     return pct(row.get("Gross rental yield"))
 
 # ============================================================
-# CLIENT 1 — DSR UPLOAD
+# RUN DISCOVERY — CLIENT 1 (DSR)
 # ============================================================
 if client_mode == "DSR Upload":
 
-    uploaded_file = st.file_uploader("Upload your DSR Excel file", type=["xlsx"])
+    uploaded_file = st.file_uploader(
+        "Upload your DSR Excel file",
+        type=["xlsx"],
+        key="dsr_upload"
+    )
 
-    if uploaded_file and st.button("Run Discovery (Filter Only)"):
-
+    if uploaded_file and st.button("Apply Discovery Filters"):
         df = pd.read_excel(uploaded_file)
         discovered = []
 
@@ -121,16 +136,31 @@ if client_mode == "DSR Upload":
                 "Suburb": r.get("Suburb"),
                 "Median Price": price,
                 "Days on Market": dom,
-                "row": r
+                "_row": r
             })
 
         st.session_state.discovery_df = pd.DataFrame(discovered)
-        st.session_state.selected_suburbs = set(st.session_state.discovery_df["Suburb"])
+        st.session_state.last_discovery_run = True
+
+        if st.session_state.discovery_df.empty:
+            st.session_state.selected_suburbs = set()
+            st.warning(
+                "⚠️ No suburbs matched your discovery filters.\n\n"
+                "Try adjusting:\n"
+                "• Maximum Median Price\n"
+                "• Maximum Days on Market\n"
+                "• Renters Proportion range\n"
+                "• Minimum Gross Yield"
+            )
+        else:
+            st.session_state.selected_suburbs = set(
+                st.session_state.discovery_df["Suburb"]
+            )
 
 # ============================================================
-# CLIENT 2 — EXPLORER
+# RUN DISCOVERY — CLIENT 2 (EXPLORER)
 # ============================================================
-if client_mode == "Explorer":
+if client_mode == "Explorer" and st.button("Apply Discovery Filters"):
 
     STATE_SUBURBS = {
         "NSW": ["Cessnock", "Maitland", "Kurri Kurri", "Singleton"],
@@ -138,61 +168,74 @@ if client_mode == "Explorer":
         "QLD": ["Toowoomba", "Mackay"],
     }
 
-    state = selected_state if selected_state != "All" else st.selectbox("State", STATE_SUBURBS.keys())
+    state = selected_state if selected_state != "All" else st.selectbox(
+        "Explorer State", STATE_SUBURBS.keys()
+    )
 
-    if st.button("Run Discovery (Filter Only)"):
+    discovered = []
 
-        discovered = []
+    for suburb in STATE_SUBURBS[state]:
+        dom = random.randint(20, 150)
+        renters = random.uniform(10, 45)
+        price = random.randint(300_000, 1_600_000)
+        yld = random.uniform(3.0, 7.5)
 
-        for suburb in STATE_SUBURBS[state]:
-            dom = random.randint(20, 150)
-            renters = random.uniform(10, 45)
-            price = random.randint(300_000, 1_600_000)
-            yld = random.uniform(3.0, 7.5)
+        if dom > max_dom:
+            continue
+        if not (renters_min <= renters <= renters_max):
+            continue
+        if price > max_price:
+            continue
+        if yld < min_yield:
+            continue
 
-            if dom > max_dom:
-                continue
-            if not (renters_min <= renters <= renters_max):
-                continue
-            if price > max_price:
-                continue
-            if yld < min_yield:
-                continue
+        discovered.append({
+            "State": state,
+            "Suburb": suburb,
+            "Median Price": price,
+            "Days on Market": dom,
+            "_row": {
+                "renters_pct": renters,
+                "vacancy_pct": random.uniform(0.5, 3.0),
+                "demand_supply_ratio": random.uniform(55, 75),
+                "stock_on_market_pct": random.uniform(0.5, 2.0),
+                "gross_rental_yield": yld,
+                "statistical_reliability": random.uniform(50, 85),
+            }
+        })
 
-            discovered.append({
-                "State": state,
-                "Suburb": suburb,
-                "Median Price": price,
-                "Days on Market": dom,
-                "row": {
-                    "renters_pct": renters,
-                    "vacancy_pct": random.uniform(0.5, 3.0),
-                    "demand_supply_ratio": random.uniform(55, 75),
-                    "stock_on_market_pct": random.uniform(0.5, 2.0),
-                    "gross_rental_yield": yld,
-                    "statistical_reliability": random.uniform(50, 85),
-                }
-            })
+    st.session_state.discovery_df = pd.DataFrame(discovered)
+    st.session_state.last_discovery_run = True
 
-        st.session_state.discovery_df = pd.DataFrame(discovered)
-        st.session_state.selected_suburbs = set(st.session_state.discovery_df["Suburb"])
+    if st.session_state.discovery_df.empty:
+        st.session_state.selected_suburbs = set()
+        st.warning(
+            "⚠️ No suburbs matched your discovery filters.\n\n"
+            "Try widening one or more filters."
+        )
+    else:
+        st.session_state.selected_suburbs = set(
+            st.session_state.discovery_df["Suburb"]
+        )
 
 # ============================================================
 # STAGE 1 — DISCOVERY RESULTS + SELECTION
 # ============================================================
-if st.session_state.discovery_df is not None and not st.session_state.discovery_df.empty:
+if (
+    st.session_state.discovery_df is not None
+    and not st.session_state.discovery_df.empty
+):
 
     st.markdown("## 📍 Discovery Results")
 
     select_all = st.checkbox("Select all suburbs for Deep Analysis", True)
 
     if select_all:
-        st.session_state.selected_suburbs = set(st.session_state.discovery_df["Suburb"])
-    else:
-        st.session_state.selected_suburbs.clear()
+        st.session_state.selected_suburbs = set(
+            st.session_state.discovery_df["Suburb"]
+        )
 
-    for _, row in st.session_state.discovery_df.iterrows():
-        suburb = row["Suburb"]
+    for suburb in st.session_state.discovery_df["Suburb"]:
         checked = suburb in st.session_state.selected_suburbs
         if st.checkbox(suburb, checked):
             st.session_state.selected_suburbs.add(suburb)
@@ -200,14 +243,20 @@ if st.session_state.discovery_df is not None and not st.session_state.discovery_
             st.session_state.selected_suburbs.discard(suburb)
 
     st.dataframe(
-        st.session_state.discovery_df[["State", "Suburb", "Median Price", "Days on Market"]],
+        st.session_state.discovery_df[
+            ["State", "Suburb", "Median Price", "Days on Market"]
+        ],
         use_container_width=True
     )
 
 # ============================================================
-# STAGE 2 — DEEP ANALYSIS FILTERS
+# STAGE 2 — DEEP ANALYSIS
 # ============================================================
-if st.session_state.selected_suburbs:
+if (
+    st.session_state.discovery_df is not None
+    and not st.session_state.discovery_df.empty
+    and len(st.session_state.selected_suburbs) > 0
+):
 
     st.markdown("## 🟥 Stage 2 — Deep Analysis Filters")
 
@@ -222,23 +271,25 @@ if st.session_state.selected_suburbs:
 
     if st.button("Run Deep Analysis on Selected Suburbs"):
 
-        results = []
+        analysis = []
 
         for _, r in st.session_state.discovery_df.iterrows():
+
             if r["Suburb"] not in st.session_state.selected_suburbs:
                 continue
 
-            factors = (
-                r["row"] if client_mode == "Explorer"
-                else {
-                    "renters_pct": pct(r["row"].get("Percent renters in market")),
-                    "vacancy_pct": pct(r["row"].get("Vacancy rate")),
-                    "demand_supply_ratio": r["row"].get("Demand to Supply Ratio"),
-                    "stock_on_market_pct": pct(r["row"].get("Percent stock on market")),
-                    "gross_rental_yield": pick_yield(r["row"]),
-                    "statistical_reliability": r["row"].get("Statistical reliability"),
+            if client_mode == "Explorer":
+                factors = r["_row"]
+            else:
+                rr = r["_row"]
+                factors = {
+                    "renters_pct": pct(rr.get("Percent renters in market")),
+                    "vacancy_pct": pct(rr.get("Vacancy rate")),
+                    "demand_supply_ratio": rr.get("Demand to Supply Ratio"),
+                    "stock_on_market_pct": pct(rr.get("Percent stock on market")),
+                    "gross_rental_yield": pick_yield(rr),
+                    "statistical_reliability": rr.get("Statistical reliability"),
                 }
-            )
 
             if factors["vacancy_pct"] > max_vacancy:
                 continue
@@ -248,9 +299,9 @@ if st.session_state.selected_suburbs:
                 continue
 
             decision, failed = evaluate_buy_gates(factors)
-            score, band = calculate_confidence(decision)
+            _, band = calculate_confidence(decision)
 
-            results.append({
+            analysis.append({
                 "State": r["State"],
                 "Suburb": r["Suburb"],
                 "Decision": decision,
@@ -259,4 +310,4 @@ if st.session_state.selected_suburbs:
             })
 
         st.subheader("✅ Deep Analysis Results")
-        st.dataframe(pd.DataFrame(results), use_container_width=True)
+        st.dataframe(pd.DataFrame(analysis), use_container_width=True)
