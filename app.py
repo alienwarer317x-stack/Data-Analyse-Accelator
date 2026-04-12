@@ -71,10 +71,20 @@ if client_mode == "DSR Upload":
         df = pd.read_excel(uploaded_file, sheet_name="Sheet1")
 
         discovered = []
-        st.session_state.discovery_df_dsr = pd.DataFrame(discovered)
-        st.session_state.discovery_df = st.session_state.discovery_df_dsr
+    
 
         for _, r in df.iterrows():
+
+
+
+
+
+
+
+
+
+            st.session_state.discovery_df_dsr = pd.DataFrame(discovered)
+            st.session_state.discovery_df = st
             if selected_state != "All" and r.get("State") != selected_state:
                 continue
 
