@@ -8,14 +8,10 @@ st.title("🏠 Property Investment Accelerator Matcher")
 st.subheader("Two‑Stage Discovery + Authoritative Logic Engine")
 
 # ====================== SESSION STATE ======================
-if "dsr_discovery_df" not in st.session_state:
-    st.session_state.dsr_discovery_df = None
-if "explorer_discovery_df" not in st.session_state:
-    st.session_state.explorer_discovery_df = None
-if "dsr_selected_suburbs" not in st.session_state:
-    st.session_state.dsr_selected_suburbs = set()
-if "explorer_selected_suburbs" not in st.session_state:
-    st.session_state.explorer_selected_suburbs = set()
+if "discovery_df" not in st.session_state:
+    st.session_state.discovery_df = None
+if "selected_suburbs" not in st.session_state:
+    st.session_state.selected_suburbs = set()
 
 # ====================== CLIENT MODE ======================
 client_mode = st.radio("Client Type", ("DSR Upload", "Explorer"), horizontal=True)
@@ -44,10 +40,8 @@ with col2:
     )
 # ====================== RESET BUTTON ======================
 if st.button("Reset"):
-    st.session_state.dsr_discovery_df = None
-    st.session_state.explorer_discovery_df = None
-    st.session_state.dsr_selected_suburbs = set()
-    st.session_state.explorer_selected_suburbs = set()
+    st.session_state.discovery_df = None
+    st.session_state.selected_suburbs = set()
 # ====================== NORMALISATION HELPERS ======================
 def normalise_plain(val):
     if pd.isna(val):
@@ -102,7 +96,7 @@ if client_mode == "DSR Upload":
                 "_row": r
             })
 
-        st.session_state.dsr_discovery_df = pd.DataFrame(discovered)
+        st.session_state.discovery_df = pd.DataFrame(discovered)
 
 # ====================== EXPLORER MODE ======================
 if client_mode == "Explorer" and st.button("Apply Discovery Filters"):
@@ -130,22 +124,13 @@ if client_mode == "Explorer" and st.button("Apply Discovery Filters"):
         (df["Median Price"] <= max_price) &
         (df["Days on Market"] <= max_dom)
     ]
-    st.session_state.explorer_discovery_df = df
+    st.session_state.discovery_df = df
 
 # ====================== STAGE 1 RESULTS — SINGLE TABLE ======================
-current_discovery_df = None
-current_selected_suburbs = set()
-if client_mode == "DSR Upload" and st.session_state.dsr_discovery_df is not None and not st.session_state.dsr_discovery_df.empty:
-    current_discovery_df = st.session_state.dsr_discovery_df
-    current_selected_suburbs = st.session_state.dsr_selected_suburbs
-elif client_mode == "Explorer" and st.session_state.explorer_discovery_df is not None and not st.session_state.explorer_discovery_df.empty:
-    current_discovery_df = st.session_state.explorer_discovery_df
-    current_selected_suburbs = st.session_state.explorer_selected_suburbs
-
-if current_discovery_df is not None and not current_discovery_df.empty:
+if st.session_state.discovery_df is not None and not st.session_state.discovery_df.empty:
     st.markdown("## 📍 Discovery Results")
 
-    df_display = current_discovery_df.copy()
+    df_display = st.session_state.discovery_df.copy()
     df_display["Median Price"] = df_display["Median Price"].apply(
         lambda x: f"${x:,.0f}" if pd.notna(x) else ""
     )
@@ -158,24 +143,21 @@ if current_discovery_df is not None and not current_discovery_df.empty:
     )
 
     # single selector – no duplicate listing
-    all_suburbs = current_discovery_df["Suburb"].tolist()
+    all_suburbs = st.session_state.discovery_df["Suburb"].tolist()
     selected = st.multiselect(
         "Select suburbs for Deep Analysis",
         options=all_suburbs,
-        default=list(current_selected_suburbs) # Convert set to list for default value
+        default=all_suburbs
     )
-    if client_mode == "DSR Upload":
-        st.session_state.dsr_selected_suburbs = set(selected)
-    else:
-        st.session_state.explorer_selected_suburbs = set(selected)
+    st.session_state.selected_suburbs = set(selected)
 
 # ====================== STAGE 2 — DEEP ANALYSIS ======================
-if current_selected_suburbs:
+if st.session_state.selected_suburbs:
     st.markdown("## 🟥 Stage 2 — Deep Analysis (Authoritative Engine)")
     if st.button("Run Deep Analysis on Selected Suburbs"):
         results = []
-        for _, r in current_discovery_df.iterrows():
-            if r["Suburb"] not in current_selected_suburbs:
+        for _, r in st.session_state.discovery_df.iterrows():
+            if r["Suburb"] not in st.session_state.selected_suburbs:
                 continue
 
             row = r["_row"]
