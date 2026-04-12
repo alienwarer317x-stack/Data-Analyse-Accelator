@@ -42,14 +42,12 @@ with col2:
         "Minimum Gross Rental Yield (%)",
         3.0, 8.0, 4.0
     )
-
 # ====================== RESET BUTTON ======================
 if st.button("Reset"):
     st.session_state.dsr_discovery_df = None
     st.session_state.explorer_discovery_df = None
     st.session_state.dsr_selected_suburbs = set()
     st.session_state.explorer_selected_suburbs = set()
-
 # ====================== NORMALISATION HELPERS ======================
 def normalise_plain(val):
     if pd.isna(val):
@@ -89,6 +87,7 @@ if client_mode == "DSR Upload":
             )
             yld = normalise_percent(r.get("Gross rental yield"))
 
+            # ✅ STAGE 1 — STRUCTURAL FILTERS ONLY
             if dom is None or dom > max_dom:
                 continue
             if price is not None and price > max_price:
@@ -133,14 +132,12 @@ if client_mode == "Explorer" and st.button("Apply Discovery Filters"):
     ]
     st.session_state.explorer_discovery_df = df
 
-# ====================== STAGE 1 RESULTS ======================
+# ====================== STAGE 1 RESULTS — SINGLE TABLE ======================
 current_discovery_df = None
 current_selected_suburbs = set()
-
 if client_mode == "DSR Upload" and st.session_state.dsr_discovery_df is not None and not st.session_state.dsr_discovery_df.empty:
     current_discovery_df = st.session_state.dsr_discovery_df
     current_selected_suburbs = st.session_state.dsr_selected_suburbs
-
 elif client_mode == "Explorer" and st.session_state.explorer_discovery_df is not None and not st.session_state.explorer_discovery_df.empty:
     current_discovery_df = st.session_state.explorer_discovery_df
     current_selected_suburbs = st.session_state.explorer_selected_suburbs
@@ -160,25 +157,25 @@ if current_discovery_df is not None and not current_discovery_df.empty:
         use_container_width=True
     )
 
+    # single selector – no duplicate listing
     all_suburbs = current_discovery_df["Suburb"].tolist()
     selected = st.multiselect(
         "Select suburbs for Deep Analysis",
         options=all_suburbs,
-        default=list(current_selected_suburbs)
+        default=list(current_selected_suburbs) # Convert set to list for default value
     )
-
     if client_mode == "DSR Upload":
         st.session_state.dsr_selected_suburbs = set(selected)
+        current_selected_suburbs = st.session_state.dsr_selected_suburbs
     else:
         st.session_state.explorer_selected_suburbs = set(selected)
+        current_selected_suburbs = st.session_state.explorer_selected_suburbs
 
 # ====================== STAGE 2 — DEEP ANALYSIS ======================
 if current_selected_suburbs:
     st.markdown("## 🟥 Stage 2 — Deep Analysis (Authoritative Engine)")
     if st.button("Run Deep Analysis on Selected Suburbs"):
-
         results = []
-
         for _, r in current_discovery_df.iterrows():
             if r["Suburb"] not in current_selected_suburbs:
                 continue
