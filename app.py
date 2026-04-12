@@ -15,8 +15,8 @@ st.subheader("Authoritative Logic Engine · Two‑Stage Discovery & Analysis")
 # ============================================================
 # SESSION STATE
 # ============================================================
-if "stage1_results" not in st.session_state:
-    st.session_state.stage1_results = None
+if "discovery_results" not in st.session_state:
+    st.session_state.discovery_results = None
 
 if "client_mode" not in st.session_state:
     st.session_state.client_mode = "Explorer"
@@ -29,26 +29,30 @@ st.markdown("### Choose how you want to use the Accelerator")
 client_mode = st.radio(
     "Client Type",
     ("DSR Upload", "Explorer"),
-    index=0 if st.session_state.client_mode == "DSR Upload" else 1
+    index=0 if st.session_state.client_mode == "DSR Upload" else 1,
 )
 
 st.session_state.client_mode = client_mode
 
 # ============================================================
-# SHARED FILTERS (DISCOVERY ONLY)
+# STAGE 1 — DISCOVERY FILTERS (PREFERENCES ONLY)
 # ============================================================
 st.markdown("### Stage 1 — Discovery Filters (Preferences)")
-st.caption("Filters narrow the universe. No investment logic applied yet.")
+st.caption("These filters narrow the universe. No investment logic applied yet.")
 
 col1, col2 = st.columns(2)
 
 with col1:
     selected_state = st.selectbox("State", ["All", "NSW", "VIC", "QLD", "TAS", "NT"])
+    property_type = st.radio("Property Type", ["House", "Unit", "Both"], horizontal=True)
     max_dom = st.slider("Maximum Days on Market", 0, 180, 90)
     renters_min, renters_max = st.slider("Renters Proportion (%)", 0, 40, (15, 35))
 
 with col2:
-    max_price = st.slider("Maximum Median Price ($)", 200_000, 2_000_000, 1_000_000, step=50_000)
+    max_price = st.slider(
+        "Maximum Median Price ($)",
+        200_000, 2_000_000, 1_000_000, step=50_000
+    )
     min_yield = st.slider("Minimum Gross Yield (%)", 3.0, 8.0, 4.0)
 
 # ============================================================
@@ -67,8 +71,26 @@ def safe_int(val):
     except:
         return None
 
+def pick_price(row, mode):
+    if mode == "House":
+        return row.get("Median house price") or row.get("Median price")
+    if mode == "Unit":
+        return row.get("Median unit price") or row.get("Median price")
+    return (
+        row.get("Median house price")
+        or row.get("Median unit price")
+        or row.get("Median price")
+    )
+
+def pick_yield(row, mode):
+    if mode == "House":
+        return pct(row.get("Gross house rental yield") or row.get("Gross rental yield"))
+    if mode == "Unit":
+        return pct(row.get("Gross unit rental yield") or row.get("Gross rental yield"))
+    return pct(row.get("Gross rental yield"))
+
 # ============================================================
-# CLIENT 1 — DSR UPLOAD (TWO‑STAGE)
+# CLIENT 1 — DSR UPLOAD
 # ============================================================
 if client_mode == "DSR Upload":
 
@@ -76,11 +98,8 @@ if client_mode == "DSR Upload":
 
     if uploaded_file:
         df = pd.read_excel(uploaded_file)
-        st.success("✅ DSR uploaded")
 
-        # ---------- STAGE 1: DISCOVERY ----------
         if st.button("Run Discovery (Filter Only)"):
-
             discovery = []
 
             for _, r in df.iterrows():
@@ -90,21 +109,21 @@ if client_mode == "DSR Upload":
 
                 dom = safe_int(r.get("Days on market"))
                 renters = pct(r.get("Percent renters in market"))
-                yield_ = pct(r.get("Gross rental yield"))
-                price = r.get("Median price")
+                price = pick_price(r, property_type)
+                yield_ = pick_yield(r, property_type)
 
                 if dom is None or dom > max_dom:
                     continue
                 if renters is None or not (renters_min <= renters <= renters_max):
                     continue
-                if yield_ is None or yield_ < min_yield:
-                    continue
                 if price is not None and price > max_price:
+                    continue
+                if yield_ is None or yield_ < min_yield:
                     continue
 
                 discovery.append(r)
 
-            st.session_state.stage1_results = discovery
+            st.session_state.discovery_results = discovery
 
             st.subheader("📍 Discovery Results")
             if discovery:
@@ -115,19 +134,16 @@ if client_mode == "DSR Upload":
             else:
                 st.warning("No suburbs matched your discovery filters.")
 
-        # ---------- STAGE 2: DEEP ANALYSIS ----------
-        if st.session_state.stage1_results and st.button("Run Deep Analysis"):
-
+        if st.session_state.discovery_results and st.button("Run Deep Analysis"):
             analysis = []
 
-            for r in st.session_state.stage1_results:
-
+            for r in st.session_state.discovery_results:
                 factors = {
                     "renters_pct": pct(r.get("Percent renters in market")),
                     "vacancy_pct": pct(r.get("Vacancy rate")),
                     "demand_supply_ratio": r.get("Demand to Supply Ratio"),
                     "stock_on_market_pct": pct(r.get("Percent stock on market")),
-                    "gross_rental_yield": pct(r.get("Gross rental yield")),
+                    "gross_rental_yield": pick_yield(r, property_type),
                     "statistical_reliability": r.get("Statistical reliability"),
                 }
 
@@ -139,14 +155,14 @@ if client_mode == "DSR Upload":
                     "Suburb": r.get("Suburb"),
                     "Decision": decision,
                     "Confidence": band,
-                    "Failed Gates": ", ".join(failed) if failed else "None"
+                    "Failed Gates": ", ".join(failed) if failed else "None",
                 })
 
             st.subheader("✅ Deep Analysis Results")
             st.dataframe(pd.DataFrame(analysis), use_container_width=True)
 
 # ============================================================
-# CLIENT 2 — EXPLORER (TWO‑STAGE)
+# CLIENT 2 — EXPLORER
 # ============================================================
 if client_mode == "Explorer":
 
@@ -157,12 +173,9 @@ if client_mode == "Explorer":
     }
 
     state = selected_state if selected_state != "All" else st.selectbox("State", STATE_SUBURBS.keys())
-
     suburbs = STATE_SUBURBS[state]
 
-    # ---------- STAGE 1: DISCOVERY ----------
     if st.button("Run Discovery (Filter Only)"):
-
         discovery = []
 
         for suburb in suburbs:
@@ -175,9 +188,9 @@ if client_mode == "Explorer":
                 continue
             if not (renters_min <= renters <= renters_max):
                 continue
-            if yield_ < min_yield:
-                continue
             if price > max_price:
+                continue
+            if yield_ < min_yield:
                 continue
 
             discovery.append({
@@ -187,25 +200,19 @@ if client_mode == "Explorer":
                 "Days on Market": dom,
             })
 
-        st.session_state.stage1_results = discovery
+        st.session_state.discovery_results = discovery
 
         st.subheader("📍 Discovery Results")
-        if discovery:
-            st.dataframe(pd.DataFrame(discovery), use_container_width=True)
-        else:
-            st.warning("No suburbs matched your discovery filters.")
+        st.dataframe(pd.DataFrame(discovery), use_container_width=True)
 
-    # ---------- STAGE 2: DEEP ANALYSIS ----------
-    if st.session_state.stage1_results and st.button("Run Deep Analysis"):
-
+    if st.session_state.discovery_results and st.button("Run Deep Analysis"):
         analysis = []
 
-        for r in st.session_state.stage1_results:
-
+        for r in st.session_state.discovery_results:
             factors = {
                 "renters_pct": random.uniform(15, 35),
                 "vacancy_pct": random.uniform(0.5, 3.0),
-                "demand_supply_ratio": random.uniform(50, 75),
+                "demand_supply_ratio": random.uniform(55, 75),
                 "stock_on_market_pct": random.uniform(0.5, 2.0),
                 "gross_rental_yield": random.uniform(4.0, 7.0),
                 "statistical_reliability": random.uniform(50, 85),
@@ -219,7 +226,7 @@ if client_mode == "Explorer":
                 "Suburb": r["Suburb"],
                 "Decision": decision,
                 "Confidence": band,
-                "Failed Gates": ", ".join(failed) if failed else "None"
+                "Failed Gates": ", ".join(failed) if failed else "None",
             })
 
         st.subheader("✅ Deep Analysis Results")
