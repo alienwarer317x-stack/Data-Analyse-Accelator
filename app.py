@@ -39,6 +39,16 @@ with col2:
         3.0, 8.0, 4.0
     )
 
+# ====================== APPLY + RESET BUTTONS ======================
+btn_apply, btn_reset = st.columns([1, 1])
+
+apply_clicked = btn_apply.button("Apply Discovery Filters")
+reset_clicked = btn_reset.button("Reset")
+
+if reset_clicked:
+    st.session_state.discovery_df = None
+    st.session_state.selected_suburbs = set()
+
 # ====================== NORMALISATION HELPERS ======================
 def normalise_plain(val):
     if pd.isna(val):
@@ -53,14 +63,14 @@ def normalise_percent(val):
         return None
     try:
         v = float(str(val).replace("%", "").strip())
-        return v * 100 if v <= 1 else v
+        return v * 100 if v &lt;= 1 else v
     except:
         return None
 
 # ====================== DSR UPLOAD MODE ======================
 if client_mode == "DSR Upload":
     uploaded_file = st.file_uploader("Upload your DSR Excel file", type=["xlsx"])
-    if uploaded_file and st.button("Apply Discovery Filters"):
+    if uploaded_file and apply_clicked:
         df = pd.read_excel(uploaded_file, sheet_name="Sheet1")
 
         discovered = []
@@ -79,9 +89,9 @@ if client_mode == "DSR Upload":
             yld = normalise_percent(r.get("Gross rental yield"))
 
             # ✅ STAGE 1 — STRUCTURAL FILTERS ONLY
-            if dom is None or dom > max_dom:
+            if dom is None or dom &gt; max_dom:
                 continue
-            if price is not None and price > max_price:
+            if price is not None and price &gt; max_price:
                 continue
 
             discovered.append({
@@ -96,7 +106,7 @@ if client_mode == "DSR Upload":
         st.session_state.discovery_df = pd.DataFrame(discovered)
 
 # ====================== EXPLORER MODE ======================
-if client_mode == "Explorer" and st.button("Apply Discovery Filters"):
+if client_mode == "Explorer" and apply_clicked:
     demo_data = [
         {
             "State": "NSW",
@@ -118,8 +128,8 @@ if client_mode == "Explorer" and st.button("Apply Discovery Filters"):
 
     df = pd.DataFrame(demo_data)
     df = df[
-        (df["Median Price"] <= max_price) &
-        (df["Days on Market"] <= max_dom)
+        (df["Median Price"] &lt;= max_price) &amp;
+        (df["Days on Market"] &lt;= max_dom)
     ]
     st.session_state.discovery_df = df
 
