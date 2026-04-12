@@ -64,9 +64,14 @@ with col2:
     )
 
 # ============================================================
-# RESET DISCOVERY
+# APPLY / RESET BUTTONS
 # ============================================================
-if st.button("Reset Discovery Filters"):
+btn_apply, btn_reset = st.columns([1, 1])
+
+apply_clicked = btn_apply.button("Apply Discovery Filters")
+reset_clicked = btn_reset.button("Reset")
+
+if reset_clicked:
     st.session_state.discovery_df = None
     st.session_state.selected_suburbs = set()
 
@@ -90,6 +95,11 @@ def normalise_plain(val):
     except:
         return None
 
+def fmt_currency(val):
+    if val is None or pd.isna(val):
+        return ""
+    return f"${val:,.0f}"
+
 # ============================================================
 # STAGE 1 — DISCOVERY (DSR UPLOAD)
 # ============================================================
@@ -100,7 +110,7 @@ if client_mode == "DSR Upload":
         type=["xlsx"]
     )
 
-    if uploaded_file and st.button("Apply Discovery Filters"):
+    if uploaded_file and apply_clicked:
         df = pd.read_excel(uploaded_file)
 
         discovered = []
@@ -130,7 +140,7 @@ if client_mode == "DSR Upload":
             discovered.append({
                 "State": r.get("State"),
                 "Suburb": r.get("Suburb"),
-                "Median Price": price,
+                "Median Price": fmt_currency(price),
                 "Days on Market": dom,
                 "_row": r
             })
@@ -149,83 +159,41 @@ if client_mode == "DSR Upload":
             )
 
 # ============================================================
-# STAGE 1 — DISCOVERY (EXPLORER DEMO)
-# ============================================================
-if client_mode == "Explorer" and st.button("Apply Discovery Filters"):
-
-    demo_data = [
-        {
-            "State": "NSW",
-            "Suburb": "Grafton",
-            "Median Price": 520000,
-            "Days on Market": 39,
-            "_row": {
-                "Percent renters in market": 0.352,
-                "Vacancy rate": 0.0038,
-                "Demand to Supply Ratio": 59,
-                "Percent stock on market": 0.0083,
-                "Gross rental yield": 0.0534,
-                "Statistical reliability": 70
-            }
-        },
-        {
-            "State": "QLD",
-            "Suburb": "Norville",
-            "Median Price": 570000,
-            "Days on Market": 43,
-            "_row": {
-                "Percent renters in market": 0.31,
-                "Vacancy rate": 0.0057,
-                "Demand to Supply Ratio": 58,
-                "Percent stock on market": 0.0048,
-                "Gross rental yield": 0.0508,
-                "Statistical reliability": 54
-            }
-        },
-    ]
-
-    df = pd.DataFrame(demo_data)
-
-    df = df[
-        (df["Median Price"] <= max_price) &
-        (df["Days on Market"] <= max_dom) &
-        (df["_row"].apply(lambda r: normalise_percent(r["Gross rental yield"]) >= min_yield))
-    ]
-
-    st.session_state.discovery_df = df
-    st.session_state.selected_suburbs = set(df.index)
-
-# ============================================================
-# STAGE 1 RESULTS + SELECTION
+# STAGE 1 — DISCOVERY RESULTS (SINGLE LIST)
 # ============================================================
 if st.session_state.discovery_df is not None and not st.session_state.discovery_df.empty:
 
     st.markdown("## 📍 Discovery Results")
 
-    select_all = st.checkbox(
-        "Select all suburbs for Deep Analysis",
-        True
-    )
+    select_all = st.checkbox("Select all suburbs for Deep Analysis", True)
 
     if select_all:
         st.session_state.selected_suburbs = set(st.session_state.discovery_df.index)
 
-    for idx, row in st.session_state.discovery_df.iterrows():
-        label = f"{row['Suburb']} ({row['State']})"
-        key = f"disc_{idx}"
-        checked = idx in st.session_state.selected_suburbs
+    rows_for_display = []
 
-        if st.checkbox(label, checked, key=key):
+    for idx, row in st.session_state.discovery_df.iterrows():
+
+        selected = idx in st.session_state.selected_suburbs
+        key = f"select_{idx}"
+
+        if st.checkbox(
+            f"{row['Suburb']} ({row['State']}) — {row['Median Price']}, {row['Days on Market']} days",
+            value=selected,
+            key=key
+        ):
             st.session_state.selected_suburbs.add(idx)
         else:
             st.session_state.selected_suburbs.discard(idx)
 
-    st.dataframe(
-        st.session_state.discovery_df[
-            ["State", "Suburb", "Median Price", "Days on Market"]
-        ],
-        use_container_width=True
-    )
+        rows_for_display.append({
+            "State": row["State"],
+            "Suburb": row["Suburb"],
+            "Median Price": row["Median Price"],
+            "Days on Market": row["Days on Market"]
+        })
+
+    st.dataframe(pd.DataFrame(rows_for_display), use_container_width=True)
 
 # ============================================================
 # STAGE 2 — DEEP ANALYSIS (ENGINE ONLY)
@@ -238,10 +206,8 @@ if st.session_state.selected_suburbs:
 
         results = []
 
-        for idx, r in st.session_state.discovery_df.iterrows():
-            if idx not in st.session_state.selected_suburbs:
-                continue
-
+        for idx in st.session_state.selected_suburbs:
+            r = st.session_state.discovery_df.loc[idx]
             row = r["_row"]
 
             factors = {
