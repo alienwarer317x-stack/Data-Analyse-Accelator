@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 from io import BytesIO
-from engine import evaluate_buy_gates, calculate_confidence   # your engine.py
+from engine import evaluate_buy_gates, calculate_confidence
 
 st.set_page_config(page_title="Property Investment Accelerator Matcher", layout="wide")
 st.title("🏠 Property Investment Accelerator Matcher")
@@ -26,7 +26,7 @@ with col1:
     max_dom = st.slider("Maximum Days on Market", 0, 180, 90)
 with col2:
     max_price = st.slider("Maximum Median Price ($)", 200_000, 2_000_000, 1_000_000, step=50_000)
-    min_yield = st.slider("Minimum Gross Yield (%)", 3.0, 8.0, 4.0)   # ← Added back
+    min_yield = st.slider("Minimum Gross Yield (%)", 3.0, 8.0, 4.0)
 
 # ====================== NORMALISATION HELPERS ======================
 def normalise_plain(val):
@@ -60,12 +60,11 @@ if client_mode == "DSR Upload":
             price = normalise_plain(r.get("Typical value")) or normalise_plain(r.get("Median 12 months"))
             yld = normalise_percent(r.get("Gross rental yield"))
 
-            # STAGE 1 FILTERS ONLY (no engine logic)
             if dom is None or dom > max_dom:
                 continue
             if price is not None and price > max_price:
                 continue
-            if yld is None or yld < min_yield:          # ← Yield filter added back
+            if yld is None or yld < min_yield:
                 continue
 
             discovered.append({
@@ -82,11 +81,11 @@ if client_mode == "DSR Upload":
         else:
             st.session_state.selected_suburbs = set(st.session_state.discovery_df["Suburb"])
 
-# ====================== EXPLORER MODE (Demo) ======================
+# ====================== EXPLORER MODE ======================
 if client_mode == "Explorer" and st.button("Apply Discovery Filters"):
     demo_data = [
-        {"State": "NSW", "Suburb": "Grafton", "Median Price": 520000, "Days on Market": 39, "_row": {"Gross rental yield": 0.0534}},
-        {"State": "QLD", "Suburb": "Norville", "Median Price": 570000, "Days on Market": 43, "_row": {"Gross rental yield": 0.0508}},
+        {"State": "NSW", "Suburb": "Grafton", "Median Price": 520000, "Days on Market": 39, "_row": {}},
+        {"State": "QLD", "Suburb": "Norville", "Median Price": 570000, "Days on Market": 43, "_row": {}},
     ]
     df = pd.DataFrame(demo_data)
     df = df[(df["Median Price"] <= max_price) & (df["Days on Market"] <= max_dom)]
@@ -99,9 +98,11 @@ if st.session_state.discovery_df is not None and not st.session_state.discovery_
     st.dataframe(st.session_state.discovery_df[["State", "Suburb", "Median Price", "Days on Market"]], use_container_width=True)
 
     st.session_state.selected_suburbs = set()
-    for _, row in st.session_state.discovery_df.iterrows():
-        if st.checkbox(row["Suburb"], True, key=f"disc_{row['Suburb']}"):
-            st.session_state.selected_suburbs.add(row["Suburb"])
+    for idx, row in st.session_state.discovery_df.iterrows():
+        suburb = row["Suburb"]
+        # Unique key using index to prevent duplicate key error
+        if st.checkbox(suburb, True, key=f"disc_{idx}_{suburb}"):
+            st.session_state.selected_suburbs.add(suburb)
 
 # ====================== STAGE 2 — DEEP ANALYSIS ======================
 if st.session_state.selected_suburbs:
