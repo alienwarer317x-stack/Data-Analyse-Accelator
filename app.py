@@ -12,7 +12,11 @@ if "discovery_df" not in st.session_state:
     st.session_state.discovery_df = None
 if "selected_suburbs" not in st.session_state:
     st.session_state.selected_suburbs = set()
+if "discovery_df_dsr" not in st.session_state:
+    st.session_state.discovery_df_dsr = None
 
+if "discovery_df_explorer" not in st.session_state:
+    st.session_state.discovery_df_explorer = None
 # ====================== CLIENT MODE ======================
 client_mode = st.radio("Client Type", ("DSR Upload", "Explorer"), horizontal=True)
 
@@ -96,7 +100,8 @@ if client_mode == "DSR Upload":
                 "_row": r
             })
 
-        st.session_state.discovery_df = pd.DataFrame(discovered)
+       st.session_state.discovery_df_dsr = pd.DataFrame(discovered)
+st.session_state.discovery_df = st.session_state.discovery_df_dsr
 
 # ====================== EXPLORER MODE ======================
 if client_mode == "Explorer" and st.button("Apply Discovery Filters"):
@@ -124,7 +129,8 @@ if client_mode == "Explorer" and st.button("Apply Discovery Filters"):
         (df["Median Price"] <= max_price) &
         (df["Days on Market"] <= max_dom)
     ]
-    st.session_state.discovery_df = df
+    st.session_state.discovery_df_explorer = df
+st.session_state.discovery_df = st.session_state.discovery_df_explorer
 
 # ====================== STAGE 1 RESULTS — SINGLE TABLE ======================
 if st.session_state.discovery_df is not None and not st.session_state.discovery_df.empty:
