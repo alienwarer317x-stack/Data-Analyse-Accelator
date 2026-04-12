@@ -1,38 +1,56 @@
 import streamlit as st
 import pandas as pd
-from io import BytesIO
 
-st.set_page_config(page_title="Property Investment Accelerator Matcher", layout="wide")
+from engine import evaluate_buy_gates, calculate_confidence
+
+# ============================================================
+# APP SETUP
+# ============================================================
+st.set_page_config(
+    page_title="Property Investment Accelerator Matcher",
+    layout="wide"
+)
+
 st.title("🏠 Property Investment Accelerator Matcher")
 st.subheader("Two‑Stage Discovery + Authoritative Logic Engine")
 
-# ====================== SESSION STATE ======================
+# ============================================================
+# SESSION STATE
+# ============================================================
 if "discovery_df" not in st.session_state:
     st.session_state.discovery_df = None
 
 if "selected_suburbs" not in st.session_state:
     st.session_state.selected_suburbs = set()
 
-# ====================== CLIENT MODE ======================
+# ============================================================
+# CLIENT MODE
+# ============================================================
 client_mode = st.radio(
     "Client Type",
     ("DSR Upload", "Explorer"),
     horizontal=True
 )
 
-# ====================== STAGE 1 — DISCOVERY FILTERS ======================
+# ============================================================
+# STAGE 1 — DISCOVERY FILTERS (CLIENT LOGIC ONLY)
+# ============================================================
 st.markdown("## 🟩 Stage 1 — Discovery Filters (Preferences Only)")
-st.caption("Soft filters only — no hard BUY gates applied yet.")
+st.caption(
+    "This stage applies only your range preferences. "
+    "No investment or BUY logic is applied."
+)
 
 col1, col2 = st.columns(2)
 
 with col1:
     selected_state = st.selectbox(
-        "State", ["All", "NSW", "VIC", "QLD", "TAS", "NT", "WA", "SA"]
+        "State",
+        ["All", "NSW", "VIC", "QLD", "TAS", "NT", "WA", "SA"]
     )
-    max_dom = st.slider("Maximum Days on Market", 0, 180, 90)
-    renters_min, renters_max = st.slider(
-        "Renters Proportion (%)", 0, 40, (15, 35)
+    max_dom = st.slider(
+        "Maximum Days on Market",
+        0, 180, 90
     )
 
 with col2:
@@ -40,9 +58,17 @@ with col2:
         "Maximum Median Price ($)",
         200_000, 2_000_000, 1_000_000, step=50_000
     )
-    min_yield = st.slider("Minimum Gross Yield (%)", 3.0, 8.0, 4.0)
 
-# ====================== ENGINE HELPERS ======================
+# ============================================================
+# RESET DISCOVERY
+# ============================================================
+if st.button("Reset Discovery Filters"):
+    st.session_state.discovery_df = None
+    st.session_state.selected_suburbs = set()
+
+# ============================================================
+# NORMALISATION HELPERS
+# ============================================================
 def normalise_percent(val):
     if pd.isna(val):
         return None
@@ -60,53 +86,40 @@ def normalise_plain(val):
     except:
         return None
 
-def evaluate_buy_gates(factors):
-    failed = []
-
-    if factors["renters_pct"] is None or not (15 <= factors["renters_pct"] <= 35):
-        failed.append("Renters %")
-    if factors["vacancy_pct"] is None or factors["vacancy_pct"] >= 2:
-        failed.append("Vacancy")
-    if factors["demand_supply_ratio"] is None or factors["demand_supply_ratio"] <= 55:
-        failed.append("Demand / Supply")
-    if factors["stock_on_market_pct"] is None or factors["stock_on_market_pct"] >= 1.3:
-        failed.append("Stock on Market")
-    if factors["gross_rental_yield"] is None or factors["gross_rental_yield"] <= 4:
-        failed.append("Gross Yield")
-    if factors["statistical_reliability"] is None or factors["statistical_reliability"] <= 51:
-        failed.append("Reliability")
-
-    return ("BUY" if not failed else "AVOID", failed)
-
-def calculate_confidence(decision):
-    score = 85 if decision == "BUY" else 60
-    return score, ("High" if score >= 75 else "Medium")
-
-# ====================== DSR MODE ======================
+# ============================================================
+# STAGE 1 — DISCOVERY (DSR UPLOAD)
+# ============================================================
 if client_mode == "DSR Upload":
-    uploaded = st.file_uploader("Upload your DSR Excel file", type=["xlsx"])
 
-    if uploaded and st.button("Apply Discovery Filters"):
-        df = pd.read_excel(uploaded)
+    uploaded_file = st.file_uploader(
+        "Upload your DSR Excel file",
+        type=["xlsx"]
+    )
+
+    if uploaded_file and st.button("Apply Discovery Filters"):
+        df = pd.read_excel(uploaded_file)
 
         discovered = []
 
         for _, r in df.iterrows():
+
             if selected_state != "All" and r.get("State") != selected_state:
                 continue
 
-            dom = normalise_plain(r.get("Days on market"))
-            renters = normalise_percent(r.get("Percent renters in market"))
-            price = normalise_plain(r.get("Typical value")) or normalise_plain(r.get("Median 12 months"))
-            yld = normalise_percent(r.get("Gross rental yield"))
+            dom = normalise_plain(
+                str(r.get("Days on market", "")).replace("days", "")
+            )
 
+            price = (
+                normalise_plain(r.get("Typical value"))
+                or normalise_plain(r.get("Median 12 months"))
+            )
+
+            # ---- STAGE 1: RANGE FILTERS ONLY ----
             if dom is None or dom > max_dom:
                 continue
-            if renters is None or not (renters_min <= renters <= renters_max):
-                continue
+
             if price is not None and price > max_price:
-                continue
-            if yld is None or yld < min_yield:
                 continue
 
             discovered.append({
@@ -123,16 +136,19 @@ if client_mode == "DSR Upload":
             st.session_state.selected_suburbs.clear()
             st.warning(
                 "⚠️ No suburbs matched your discovery filters.\n\n"
-                "Try widening price, days on market, renters %, or yield."
+                "Try widening price or days‑on‑market ranges."
             )
         else:
             st.session_state.selected_suburbs = set(
                 st.session_state.discovery_df["Suburb"]
             )
 
-# ====================== EXPLORER MODE ======================
+# ============================================================
+# STAGE 1 — DISCOVERY (EXPLORER DEMO)
+# ============================================================
 if client_mode == "Explorer" and st.button("Apply Discovery Filters"):
-    demo = [
+
+    demo_data = [
         {
             "State": "NSW",
             "Suburb": "Grafton",
@@ -163,7 +179,7 @@ if client_mode == "Explorer" and st.button("Apply Discovery Filters"):
         },
     ]
 
-    df = pd.DataFrame(demo)
+    df = pd.DataFrame(demo_data)
 
     df = df[
         (df["Median Price"] <= max_price) &
@@ -173,14 +189,22 @@ if client_mode == "Explorer" and st.button("Apply Discovery Filters"):
     st.session_state.discovery_df = df
     st.session_state.selected_suburbs = set(df["Suburb"])
 
-# ====================== STAGE 1 RESULTS ======================
+# ============================================================
+# STAGE 1 RESULTS + SELECTION
+# ============================================================
 if st.session_state.discovery_df is not None and not st.session_state.discovery_df.empty:
+
     st.markdown("## 📍 Discovery Results")
 
-    select_all = st.checkbox("Select all suburbs for Deep Analysis", True)
+    select_all = st.checkbox(
+        "Select all suburbs for Deep Analysis",
+        True
+    )
 
     if select_all:
-        st.session_state.selected_suburbs = set(st.session_state.discovery_df["Suburb"])
+        st.session_state.selected_suburbs = set(
+            st.session_state.discovery_df["Suburb"]
+        )
 
     for suburb in st.session_state.discovery_df["Suburb"]:
         checked = suburb in st.session_state.selected_suburbs
@@ -190,24 +214,36 @@ if st.session_state.discovery_df is not None and not st.session_state.discovery_
             st.session_state.selected_suburbs.discard(suburb)
 
     st.dataframe(
-        st.session_state.discovery_df[["State", "Suburb", "Median Price", "Days on Market"]],
+        st.session_state.discovery_df[
+            ["State", "Suburb", "Median Price", "Days on Market"]
+        ],
         use_container_width=True
     )
 
-# ====================== STAGE 2 — DEEP ANALYSIS ======================
+# ============================================================
+# STAGE 2 — DEEP ANALYSIS (ENGINE LOGIC ONLY)
+# ============================================================
 if st.session_state.selected_suburbs:
-    st.markdown("## 🟥 Stage 2 — Deep Analysis (Hard BUY Gates)")
+
+    st.markdown("## 🟥 Stage 2 — Deep Analysis (Authoritative Logic)")
 
     col3, col4 = st.columns(2)
 
     with col3:
-        max_vacancy = st.slider("Maximum Vacancy (%)", 0.0, 5.0, 2.0)
-        max_stock = st.slider("Maximum Stock on Market (%)", 0.0, 3.0, 1.3)
+        max_vacancy = st.slider(
+            "Maximum Vacancy (%)", 0.0, 5.0, 2.0
+        )
+        max_stock = st.slider(
+            "Maximum Stock on Market (%)", 0.0, 3.0, 1.3
+        )
 
     with col4:
-        min_dsr = st.slider("Minimum Demand / Supply Ratio", 40, 80, 55)
+        min_dsr = st.slider(
+            "Minimum Demand / Supply Ratio", 40, 80, 55
+        )
 
     if st.button("Run Deep Analysis on Selected Suburbs"):
+
         results = []
 
         for _, r in st.session_state.discovery_df.iterrows():
@@ -217,12 +253,24 @@ if st.session_state.selected_suburbs:
             row = r["_row"]
 
             factors = {
-                "renters_pct": normalise_percent(row.get("Percent renters in market")),
-                "vacancy_pct": normalise_plain(row.get("Vacancy rate")),
-                "demand_supply_ratio": normalise_plain(row.get("Demand to Supply Ratio")),
-                "stock_on_market_pct": normalise_plain(row.get("Percent stock on market")),
-                "gross_rental_yield": normalise_percent(row.get("Gross rental yield")),
-                "statistical_reliability": normalise_plain(row.get("Statistical reliability")),
+                "renters_pct": normalise_percent(
+                    row.get("Percent renters in market")
+                ),
+                "vacancy_pct": normalise_plain(
+                    row.get("Vacancy rate")
+                ),
+                "demand_supply_ratio": normalise_plain(
+                    row.get("Demand to Supply Ratio")
+                ),
+                "stock_on_market_pct": normalise_plain(
+                    row.get("Percent stock on market")
+                ),
+                "gross_rental_yield": normalise_percent(
+                    row.get("Gross rental yield")
+                ),
+                "statistical_reliability": normalise_plain(
+                    row.get("Statistical reliability")
+                ),
             }
 
             decision, failed = evaluate_buy_gates(factors)
