@@ -14,15 +14,28 @@ st.title("🏠 Property Investment Accelerator")
 st.subheader("Authoritative Logic Engine · Multi‑Client Platform")
 
 # ============================================================
-# CLIENT TYPE SELECTION
+# INITIALISE SESSION STATE
 # ============================================================
+if "client_mode" not in st.session_state:
+    st.session_state["client_mode"] = "I want to explore suburbs (No data)"
+
+# ============================================================
+# CLIENT TYPE SELECTION (SESSION‑CONTROLLED)
+# ============================================================
+st.markdown("### Choose how you want to use the Accelerator")
+
 client_mode = st.radio(
     "Client Type",
     (
         "I have DSR data (Upload Spreadsheet)",
         "I want to explore suburbs (No data)"
-    )
+    ),
+    index=0 if st.session_state["client_mode"] == "I have DSR data (Upload Spreadsheet)" else 1,
+    key="client_mode_radio"
 )
+
+# Keep session state in sync
+st.session_state["client_mode"] = client_mode
 
 # ============================================================
 # SHARED FILTERS (PREFERENCES)
@@ -65,24 +78,33 @@ def safe_int(val):
     except:
         return None
 
-# ============================================================
-# CLIENT 1 — DSR WITH FILTER DIAGNOSTICS
-# ============================================================
-if client_mode == "I have DSR data (Upload Spreadsheet)":
+def pick_price(row, mode):
+    if mode == "House":
+        return row.get("Median house price") or row.get("Median price")
+    if mode == "Unit":
+        return row.get("Median unit price") or row.get("Median price")
+    return row.get("Median house price") or row.get("Median unit price") or row.get("Median price")
 
-    uploaded_file = st.file_uploader("Upload your DSR Excel file", type=["xlsx"])
+# ============================================================
+# CLIENT TYPE 1 — DSR (AUTO‑SWITCH ENABLED)
+# ============================================================
+uploaded_file = st.file_uploader("Upload your DSR Excel file", type=["xlsx"])
+
+if uploaded_file:
+    # 🔥 AUTO‑SWITCH TO DSR MODE
+    st.session_state["client_mode"] = "I have DSR data (Upload Spreadsheet)"
+    st.experimental_rerun()
+
+# Only run DSR UI if we are in DSR mode
+if st.session_state["client_mode"] == "I have DSR data (Upload Spreadsheet)":
 
     if uploaded_file:
         df = pd.read_excel(uploaded_file)
-        st.success("✅ DSR uploaded. Apply filters and run analysis.")
+        st.success("✅ DSR uploaded. Filters applied. Ready to run analysis.")
 
         if st.button("Run DSR Analysis"):
 
-            st.info("🔄 Applying filters and running BUY logic on DSR data…")
-
             rows = []
-
-            # ---- DIAGNOSTIC COUNTERS ----
             diag = {
                 "State": 0,
                 "Property Type / Price": 0,
@@ -91,40 +113,28 @@ if client_mode == "I have DSR data (Upload Spreadsheet)":
                 "Vacancy": 0,
                 "Gross Yield": 0,
                 "Stock on Market": 0,
-                "Demand / Supply": 0
+                "Demand / Supply": 0,
             }
 
             for _, r in df.iterrows():
 
-                # ---------- STATE ----------
                 if selected_state != "All" and r.get("State") != selected_state:
                     diag["State"] += 1
                     continue
 
-                # ---------- PROPERTY TYPE & PRICE ----------
-                if property_type == "House":
-                    price = r.get("Median house price")
-                    gross_yield = pct(r.get("Gross house rental yield") or r.get("Gross rental yield"))
-                elif property_type == "Unit":
-                    price = r.get("Median unit price")
-                    gross_yield = pct(r.get("Gross unit rental yield") or r.get("Gross rental yield"))
-                else:
-                    price = r.get("Median house price") or r.get("Median unit price")
-                    gross_yield = pct(r.get("Gross rental yield"))
-
-                if price is None or price > max_price:
+                price = pick_price(r, property_type)
+                if price is not None and price > max_price:
                     diag["Property Type / Price"] += 1
                     continue
 
-                # ---------- NORMALISE ----------
                 dom = safe_int(r.get("Days on market"))
                 renters = pct(r.get("Percent renters in market"))
                 vacancy = pct(r.get("Vacancy rate"))
                 stock = pct(r.get("Percent stock on market"))
                 dsr = r.get("Demand to Supply Ratio")
+                yield_ = pct(r.get("Gross rental yield"))
                 reliability = r.get("Statistical reliability")
 
-                # ---------- FILTERS ----------
                 if dom is None or dom > max_dom:
                     diag["Days on Market"] += 1
                     continue
@@ -134,7 +144,7 @@ if client_mode == "I have DSR data (Upload Spreadsheet)":
                 if vacancy is None or vacancy > max_vacancy:
                     diag["Vacancy"] += 1
                     continue
-                if gross_yield is None or gross_yield < min_yield:
+                if yield_ is None or yield_ < min_yield:
                     diag["Gross Yield"] += 1
                     continue
                 if stock is None or stock > max_stock:
@@ -144,17 +154,15 @@ if client_mode == "I have DSR data (Upload Spreadsheet)":
                     diag["Demand / Supply"] += 1
                     continue
 
-                # ---------- ENGINE ----------
-                factors = {
+                decision, failed = evaluate_buy_gates({
                     "renters_pct": renters,
                     "vacancy_pct": vacancy,
                     "demand_supply_ratio": dsr,
                     "stock_on_market_pct": stock,
-                    "gross_rental_yield": gross_yield,
+                    "gross_rental_yield": yield_,
                     "statistical_reliability": reliability,
-                }
+                })
 
-                decision, failed = evaluate_buy_gates(factors)
                 _, band = calculate_confidence(decision)
 
                 rows.append({
@@ -167,17 +175,19 @@ if client_mode == "I have DSR data (Upload Spreadsheet)":
 
             if not rows:
                 st.warning("No suburbs matched your filters.")
-                st.markdown("#### 🔍 Filter diagnostics (why rows were excluded)")
-                diag_df = pd.DataFrame(
-                    [{"Filter": k, "Rows Excluded": v} for k, v in diag.items() if v > 0]
+                st.markdown("#### 🔍 Filter diagnostics")
+                st.dataframe(
+                    pd.DataFrame(
+                        [{"Filter": k, "Rows Excluded": v} for k, v in diag.items() if v > 0]
+                    ),
+                    use_container_width=True
                 )
-                st.dataframe(diag_df, use_container_width=True)
             else:
                 st.subheader("📊 DSR Results (Filtered)")
                 st.dataframe(pd.DataFrame(rows), use_container_width=True)
 
 # ============================================================
-# CLIENT 2 — EXPLORER (UNCHANGED)
+# CLIENT TYPE 2 — EXPLORER
 # ============================================================
-if client_mode == "I want to explore suburbs (No data)":
-    st.info("Explorer path unchanged.")
+if st.session_state["client_mode"] == "I want to explore suburbs (No data)":
+    st.info("Explorer path active.")
