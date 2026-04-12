@@ -114,8 +114,7 @@ if client_mode == "Explorer" and st.button("Apply Discovery Filters"):
             "Days on Market": 39,
             "Yield %": 5.34,
             "_row": {}
-        },
-        {
+        },\n        {
             "State": "QLD",
             "Suburb": "Norville",
             "Median Price": 570000,
@@ -166,8 +165,10 @@ if current_discovery_df is not None and not current_discovery_df.empty:
     )
     if client_mode == "DSR Upload":
         st.session_state.dsr_selected_suburbs = set(selected)
+        current_selected_suburbs = st.session_state.dsr_selected_suburbs
     else:
         st.session_state.explorer_selected_suburbs = set(selected)
+        current_selected_suburbs = st.session_state.explorer_selected_suburbs
 
 # ====================== STAGE 2 — DEEP ANALYSIS ======================
 if current_selected_suburbs:
