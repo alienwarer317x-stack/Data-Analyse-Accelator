@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
 from engine import evaluate_suburb
 
 # ============================================================
@@ -61,7 +60,7 @@ if client_mode == "DSR Upload":
         st.session_state.dsr_discovery_df = df
 
 # ============================================================
-# EXPLORER DEMO (Yield INCLUDED ✅)
+# EXPLORER DEMO
 # ============================================================
 if client_mode == "Explorer" and st.button("Apply Discovery Filters"):
     st.session_state.explorer_discovery_df = pd.DataFrame([
@@ -101,16 +100,18 @@ df = (
 )
 
 # ============================================================
-# STAGE 1 RESULTS
+# STAGE 1 RESULTS (COUNT INCLUDED ✅)
 # ============================================================
 if df is not None and not df.empty:
-    st.markdown("## 📍 Discovery Results")
+    st.markdown(f"## 📍 Discovery Results ({len(df)} suburbs)")
 
-    st.dataframe(df[["Suburb", "Yield %"]], use_container_width=True)
+    display_cols = ["Suburb"]
+    if "Yield %" in df.columns:
+        display_cols.append("Yield %")
+
+    st.dataframe(df[display_cols], use_container_width=True)
 
     suburbs = df.index.tolist()
-
-    # ✅ Default to empty unless a shortlist is loaded
     selected = st.multiselect(
         "Select suburbs for Deep Analysis",
         suburbs,
@@ -119,7 +120,7 @@ if df is not None and not df.empty:
     st.session_state.selected_suburbs = set(selected)
 
     # ========================================================
-    # SHORTLIST LOADER (BONUS ✅)
+    # SHORTLIST LOADER
     # ========================================================
     if st.session_state.saved_shortlists:
         selected_shortlist = st.selectbox(
@@ -156,7 +157,7 @@ if df is not None and not df.empty:
 
         # ✅ CONFIDENCE BADGES
         def badge(val):
-            return "🟢 " + val if val == "High" else "🟠 " + val if val == "Medium" else "🔴 " + val
+            return "🟢 High" if val == "High" else "🟠 Medium" if val == "Medium" else "🔴 Low"
 
         results_df["Confidence"] = results_df["Confidence"].apply(badge)
 
@@ -167,22 +168,50 @@ if df is not None and not df.empty:
 
         st.dataframe(results_df[display_cols], use_container_width=True)
 
-        # ✅ SAVE SHORTLIST
+        # ====================================================
+        # SAVE SHORTLIST
+        # ====================================================
         name = st.text_input("Save current shortlist as")
         if st.button("💾 Save Shortlist") and name:
             st.session_state.saved_shortlists[name] = results_df
 
-        # ✅ MARKET CYCLE CHART (Advisor only)
+        # ====================================================
+        # MARKET CYCLE CHART (Advisor only, color‑mapped ✅)
+        # ====================================================
         if view_mode == "Advisor":
             st.markdown("### Market Cycle Distribution")
-            cycle_counts = results_df["Market Cycle"].value_counts()
-            fig, ax = plt.subplots()
-            cycle_counts.plot(kind="bar", ax=ax)
-            ax.set_ylabel("Suburbs")
-            ax.set_xlabel("Market Cycle")
-            st.pyplot(fig)
 
-        # ✅ EXPORT
+            cycle_counts = results_df["Market Cycle"].value_counts()
+            cycle_colors = {
+                "Expansion": "#2E7D32",        # dark green
+                "Early Upswing": "#66BB6A",    # light green
+                "Late Cycle / Peak": "#FFA726",# amber
+                "Stagnation": "#90A4AE",       # grey
+                "Downturn": "#D32F2F"          # red
+            }
+
+            colors = [cycle_colors.get(c, "#777777") for c in cycle_counts.index]
+
+            try:
+                import matplotlib.pyplot as plt
+                fig, ax = plt.subplots()
+                cycle_counts.plot(kind="bar", color=colors, ax=ax)
+                ax.set_ylabel("Suburbs")
+                ax.set_xlabel("Market Cycle")
+                st.pyplot(fig)
+            except ModuleNotFoundError:
+                st.bar_chart(cycle_counts)
+                st.caption("📊 Using Streamlit chart (matplotlib unavailable).")
+
+            # ✅ CONFIDENCE LEGEND
+            st.markdown("**Confidence Legend:**")
+            st.markdown("- 🟢 **High** — Strong alignment with investment criteria")
+            st.markdown("- 🟠 **Medium** — Some constraints or moderate risk")
+            st.markdown("- 🔴 **Low** — Material risks or failing gates")
+
+        # ====================================================
+        # EXPORT
+        # ====================================================
         st.download_button(
             "📥 Download Results (CSV)",
             results_df.to_csv(index=False).encode("utf-8"),
