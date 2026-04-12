@@ -1,6 +1,14 @@
 import streamlit as st
 import pandas as pd
-from engine import evaluate_suburb
+
+# ============================================================
+# SAFE ENGINE IMPORT (Streamlit Cloud compatible)
+# ============================================================
+try:
+    from engine import evaluate_suburb
+except Exception:
+    st.error("❌ Could not load engine.py. Ensure engine.py is in the app root.")
+    st.stop()
 
 # ============================================================
 # APP SETUP
@@ -35,32 +43,42 @@ client_mode = st.radio("Client Type", ("DSR Upload", "Explorer"), horizontal=Tru
 # STAGE 1 — DISCOVERY (VISIBILITY ONLY)
 # ============================================================
 st.markdown("## 🟩 Stage 1 — Discovery Filters (Preferences Only)")
-state = st.selectbox("State", ["All", "NSW", "VIC", "QLD", "TAS", "NT", "WA", "SA"])
-max_dom = st.slider("Maximum Days on Market", 0, 180, 90)
-max_price = st.slider("Maximum Median Price ($)", 200_000, 2_000_000, 1_000_000, step=50_000)
 
-def f(val):
+state = st.selectbox(
+    "State", ["All", "NSW", "VIC", "QLD", "TAS", "NT", "WA", "SA"]
+)
+max_dom = st.slider("Maximum Days on Market", 0, 180, 90)
+max_price = st.slider(
+    "Maximum Median Price ($)",
+    200_000, 2_000_000, 1_000_000,
+    step=50_000,
+)
+
+def to_float(val):
     try:
         return float(val)
-    except:
+    except Exception:
         return None
 
 # ============================================================
 # DSR UPLOAD
 # ============================================================
 if client_mode == "DSR Upload":
-    file = st.file_uploader("Upload your DSR Excel file", type=["xlsx"])
-    if file and st.button("Apply Discovery Filters"):
-        df = pd.read_excel(file)
+    uploaded_file = st.file_uploader("Upload your DSR Excel file", type=["xlsx"])
+
+    if uploaded_file and st.button("Apply Discovery Filters"):
+        df = pd.read_excel(uploaded_file)
+
         df = df[
             ((df["State"] == state) | (state == "All")) &
-            (df["Days on market"].apply(f) <= max_dom) &
-            (df["Median 12 months"].apply(f) <= max_price)
+            (df["Days on market"].apply(to_float) <= max_dom) &
+            (df["Median 12 months"].apply(to_float) <= max_price)
         ]
+
         st.session_state.dsr_discovery_df = df
 
 # ============================================================
-# EXPLORER DEMO
+# EXPLORER DEMO (Yield included for consistency)
 # ============================================================
 if client_mode == "Explorer" and st.button("Apply Discovery Filters"):
     st.session_state.explorer_discovery_df = pd.DataFrame([
@@ -87,7 +105,7 @@ if client_mode == "Explorer" and st.button("Apply Discovery Filters"):
                 "Percent renters in market": 28,
                 "Statistical reliability": 80
             }
-        }
+        },
     ])
 
 # ============================================================
@@ -100,7 +118,7 @@ df = (
 )
 
 # ============================================================
-# STAGE 1 RESULTS (COUNT INCLUDED ✅)
+# STAGE 1 RESULTS
 # ============================================================
 if df is not None and not df.empty:
     st.markdown(f"## 📍 Discovery Results ({len(df)} suburbs)")
@@ -115,7 +133,7 @@ if df is not None and not df.empty:
     selected = st.multiselect(
         "Select suburbs for Deep Analysis",
         suburbs,
-        default=list(st.session_state.selected_suburbs & set(suburbs))
+        default=list(st.session_state.selected_suburbs & set(suburbs)),
     )
     st.session_state.selected_suburbs = set(selected)
 
@@ -123,31 +141,34 @@ if df is not None and not df.empty:
     # SHORTLIST LOADER
     # ========================================================
     if st.session_state.saved_shortlists:
-        selected_shortlist = st.selectbox(
+        shortlist_name = st.selectbox(
             "Load shortlist",
             list(st.session_state.saved_shortlists.keys())
         )
         if st.button("Load Selected Shortlist"):
-            shortlist_df = st.session_state.saved_shortlists[selected_shortlist]
+            shortlist_df = st.session_state.saved_shortlists[shortlist_name]
             st.session_state.selected_suburbs = set(
                 df[df["Suburb"].isin(shortlist_df["Suburb"])].index
             )
             st.experimental_rerun()
 
     # ========================================================
-    # STAGE 2 — DEEP ANALYSIS
+    # STAGE 2 — DEEP ANALYSIS (ENGINE)
     # ========================================================
     if st.button("Run Deep Analysis"):
         results = []
+
         for i in selected:
-            r = df.loc[i]
-            analysis = evaluate_suburb(r["_row"])
-            analysis["Suburb"] = r.get("Suburb", i)
+            row = df.loc[i]
+            analysis = evaluate_suburb(row["_row"])
+            analysis["Suburb"] = row.get("Suburb", i)
             results.append(analysis)
 
         results_df = pd.DataFrame(results)
 
-        # ✅ SORTING (Advisor only)
+        # ====================================================
+        # SORTING (Advisor only)
+        # ====================================================
         if view_mode == "Advisor":
             sort_by = st.selectbox(
                 "Sort results by",
@@ -155,42 +176,59 @@ if df is not None and not df.empty:
             )
             results_df = results_df.sort_values(sort_by, ascending=False)
 
-        # ✅ CONFIDENCE BADGES
-        def badge(val):
-            return "🟢 High" if val == "High" else "🟠 Medium" if val == "Medium" else "🔴 Low"
+        # ====================================================
+        # CONFIDENCE BADGES
+        # ====================================================
+        def confidence_badge(val):
+            if val == "High":
+                return "🟢 High"
+            if val == "Medium":
+                return "🟠 Medium"
+            return "🔴 Low"
 
-        results_df["Confidence"] = results_df["Confidence"].apply(badge)
+        results_df["Confidence"] = results_df["Confidence"].apply(confidence_badge)
 
-        # ✅ VIEW FILTERING
-        display_cols = ["Suburb", "Decision", "Confidence", "Market Cycle", "Explanation"]
+        # ====================================================
+        # DISPLAY COLUMNS
+        # ====================================================
+        display_cols = [
+            "Suburb", "Decision", "Confidence",
+            "Market Cycle", "Explanation"
+        ]
+
         if view_mode == "Advisor":
-            display_cols += ["Confidence Score", "Demand Score", "Failed Gates"]
+            display_cols += [
+                "Confidence Score",
+                "Demand Score",
+                "Failed Gates"
+            ]
 
         st.dataframe(results_df[display_cols], use_container_width=True)
 
         # ====================================================
         # SAVE SHORTLIST
         # ====================================================
-        name = st.text_input("Save current shortlist as")
-        if st.button("💾 Save Shortlist") and name:
-            st.session_state.saved_shortlists[name] = results_df
+        shortlist_name = st.text_input("Save current shortlist as")
+        if st.button("💾 Save Shortlist") and shortlist_name:
+            st.session_state.saved_shortlists[shortlist_name] = results_df
 
         # ====================================================
-        # MARKET CYCLE CHART (Advisor only, color‑mapped ✅)
+        # MARKET CYCLE CHART (Advisor only)
         # ====================================================
         if view_mode == "Advisor":
             st.markdown("### Market Cycle Distribution")
 
             cycle_counts = results_df["Market Cycle"].value_counts()
+
             cycle_colors = {
-                "Expansion": "#2E7D32",        # dark green
-                "Early Upswing": "#66BB6A",    # light green
-                "Late Cycle / Peak": "#FFA726",# amber
-                "Stagnation": "#90A4AE",       # grey
-                "Downturn": "#D32F2F"          # red
+                "Expansion": "#2E7D32",
+                "Early Upswing": "#66BB6A",
+                "Late Cycle / Peak": "#FFA726",
+                "Stagnation": "#90A4AE",
+                "Downturn": "#D32F2F",
             }
 
-            colors = [cycle_colors.get(c, "#777777") for c in cycle_counts.index]
+            colors = [cycle_colors.get(c, "#888888") for c in cycle_counts.index]
 
             try:
                 import matplotlib.pyplot as plt
@@ -201,12 +239,12 @@ if df is not None and not df.empty:
                 st.pyplot(fig)
             except ModuleNotFoundError:
                 st.bar_chart(cycle_counts)
-                st.caption("📊 Using Streamlit chart (matplotlib unavailable).")
+                st.caption("📊 Streamlit chart used (matplotlib unavailable).")
 
-            # ✅ CONFIDENCE LEGEND
+            # Confidence legend
             st.markdown("**Confidence Legend:**")
             st.markdown("- 🟢 **High** — Strong alignment with investment criteria")
-            st.markdown("- 🟠 **Medium** — Some constraints or moderate risk")
+            st.markdown("- 🟠 **Medium** — Moderate risks or partial constraints")
             st.markdown("- 🔴 **Low** — Material risks or failing gates")
 
         # ====================================================
