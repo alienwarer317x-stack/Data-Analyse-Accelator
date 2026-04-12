@@ -20,9 +20,6 @@ st.subheader("Two‑Stage Discovery + Authoritative Logic Engine")
 if "discovery_df" not in st.session_state:
     st.session_state.discovery_df = None
 
-if "selection_df" not in st.session_state:
-    st.session_state.selection_df = None
-
 # ============================================================
 # CLIENT MODE
 # ============================================================
@@ -69,7 +66,6 @@ reset_clicked = col_reset.button("Reset")
 
 if reset_clicked:
     st.session_state.discovery_df = None
-    st.session_state.selection_df = None
 
 # ============================================================
 # NORMALISATION HELPERS
@@ -88,12 +84,15 @@ def normalise_plain(val):
         return None
 
 def fmt_currency(val):
-    return f"${val:,.0f}" if val is not None else ""
+    if val is None:
+        return ""
+    return f"${val:,.0f}"
 
 # ============================================================
 # STAGE 1 — DISCOVERY (DSR UPLOAD)
 # ============================================================
 if client_mode == "DSR Upload":
+
     uploaded_file = st.file_uploader("Upload your DSR Excel file", type=["xlsx"])
 
     if uploaded_file and apply_clicked:
@@ -113,7 +112,7 @@ if client_mode == "DSR Upload":
             )
             yld = normalise_percent(r.get("Gross rental yield"))
 
-            # ---- STAGE 1: RANGE FILTERS ONLY ----
+            # ---- STAGE 1 RANGE FILTERS ONLY ----
             if dom is None or dom > max_dom:
                 continue
             if price is not None and price > max_price:
@@ -125,44 +124,42 @@ if client_mode == "DSR Upload":
                 "Select": True,
                 "State": r.get("State"),
                 "Suburb": r.get("Suburb"),
-                "Median Price": fmt_currency(price),
+                "Median Price ($)": fmt_currency(price),
                 "Rental Yield (%)": round(yld, 2),
                 "Days on Market": int(dom),
                 "_row": r
             })
 
-        if not discovered:
+        if discovered:
+            st.session_state.discovery_df = pd.DataFrame(discovered)
+        else:
+            st.session_state.discovery_df = None
             st.warning(
                 "⚠️ No suburbs matched your discovery filters.\n\n"
                 "Try widening price, days on market, or rental yield."
             )
-            st.session_state.discovery_df = None
-            st.session_state.selection_df = None
-        else:
-            st.session_state.discovery_df = pd.DataFrame(discovered)
-            st.session_state.selection_df = st.session_state.discovery_df.copy()
 
 # ============================================================
 # STAGE 1 — DISCOVERY RESULTS (TABLE ONLY)
 # ============================================================
-if st.session_state.selection_df is not None:
+if st.session_state.discovery_df is not None:
 
     st.markdown("## 📍 Discovery Results")
 
-    st.session_state.selection_df = st.data_editor(
-        st.session_state.selection_df,
-        use_container_width=True,
+    st.session_state.discovery_df = st.data_editor(
+        st.session_state.discovery_df,
         hide_index=True,
-        disabled=["State", "Suburb", "Median Price", "Rental Yield (%)", "Days on Market"],
+        use_container_width=True,
+        disabled=["State", "Suburb", "Median Price ($)", "Rental Yield (%)", "Days on Market"],
     )
 
 # ============================================================
 # STAGE 2 — DEEP ANALYSIS (ENGINE ONLY)
 # ============================================================
-if st.session_state.selection_df is not None:
+if st.session_state.discovery_df is not None:
 
-    selected_rows = st.session_state.selection_df[
-        st.session_state.selection_df["Select"] == True
+    selected_rows = st.session_state.discovery_df[
+        st.session_state.discovery_df["Select"] == True
     ]
 
     if not selected_rows.empty:
