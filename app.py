@@ -39,11 +39,6 @@ with col2:
         3.0, 8.0, 4.0
     )
 
-# ====================== RESET BUTTON ======================
-if st.button("Reset"):
-    st.session_state.discovery_df = None
-    st.session_state.selected_suburbs = set()
-
 # ====================== NORMALISATION HELPERS ======================
 def normalise_plain(val):
     if pd.isna(val):
@@ -84,9 +79,9 @@ if client_mode == "DSR Upload":
             yld = normalise_percent(r.get("Gross rental yield"))
 
             # ✅ STAGE 1 — STRUCTURAL FILTERS ONLY
-            if dom is None or dom &gt; max_dom:
+            if dom is None or dom > max_dom:
                 continue
-            if price is not None and price &gt; max_price:
+            if price is not None and price > max_price:
                 continue
 
             discovered.append({
@@ -123,8 +118,8 @@ if client_mode == "Explorer" and st.button("Apply Discovery Filters"):
 
     df = pd.DataFrame(demo_data)
     df = df[
-        (df["Median Price"] &lt;= max_price) &amp;
-        (df["Days on Market"] &lt;= max_dom)
+        (df["Median Price"] <= max_price) &
+        (df["Days on Market"] <= max_dom)
     ]
     st.session_state.discovery_df = df
 
