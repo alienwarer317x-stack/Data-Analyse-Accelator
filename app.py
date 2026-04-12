@@ -33,12 +33,12 @@ client_mode = st.radio(
 )
 
 # ============================================================
-# STAGE 1 — DISCOVERY FILTERS (CLIENT LOGIC ONLY)
+# STAGE 1 — DISCOVERY FILTERS (CLIENT ONLY)
 # ============================================================
 st.markdown("## 🟩 Stage 1 — Discovery Filters (Preferences Only)")
 st.caption(
-    "This stage applies only your range preferences. "
-    "No investment or BUY logic is applied."
+    "This stage applies only client preference ranges. "
+    "No investment logic or BUY rules are applied."
 )
 
 col1, col2 = st.columns(2)
@@ -118,7 +118,6 @@ if client_mode == "DSR Upload":
             # ---- STAGE 1: RANGE FILTERS ONLY ----
             if dom is None or dom > max_dom:
                 continue
-
             if price is not None and price > max_price:
                 continue
 
@@ -127,7 +126,7 @@ if client_mode == "DSR Upload":
                 "Suburb": r.get("Suburb"),
                 "Median Price": price,
                 "Days on Market": dom,
-                "_row": r
+                "_row": r  # carry full row for Stage 2
             })
 
         st.session_state.discovery_df = pd.DataFrame(discovered)
@@ -221,26 +220,11 @@ if st.session_state.discovery_df is not None and not st.session_state.discovery_
     )
 
 # ============================================================
-# STAGE 2 — DEEP ANALYSIS (ENGINE LOGIC ONLY)
+# STAGE 2 — DEEP ANALYSIS (ENGINE ONLY)
 # ============================================================
 if st.session_state.selected_suburbs:
 
-    st.markdown("## 🟥 Stage 2 — Deep Analysis (Authoritative Logic)")
-
-    col3, col4 = st.columns(2)
-
-    with col3:
-        max_vacancy = st.slider(
-            "Maximum Vacancy (%)", 0.0, 5.0, 2.0
-        )
-        max_stock = st.slider(
-            "Maximum Stock on Market (%)", 0.0, 3.0, 1.3
-        )
-
-    with col4:
-        min_dsr = st.slider(
-            "Minimum Demand / Supply Ratio", 40, 80, 55
-        )
+    st.markdown("## 🟥 Stage 2 — Deep Analysis (Authoritative Engine)")
 
     if st.button("Run Deep Analysis on Selected Suburbs"):
 
@@ -253,24 +237,12 @@ if st.session_state.selected_suburbs:
             row = r["_row"]
 
             factors = {
-                "renters_pct": normalise_percent(
-                    row.get("Percent renters in market")
-                ),
-                "vacancy_pct": normalise_plain(
-                    row.get("Vacancy rate")
-                ),
-                "demand_supply_ratio": normalise_plain(
-                    row.get("Demand to Supply Ratio")
-                ),
-                "stock_on_market_pct": normalise_plain(
-                    row.get("Percent stock on market")
-                ),
-                "gross_rental_yield": normalise_percent(
-                    row.get("Gross rental yield")
-                ),
-                "statistical_reliability": normalise_plain(
-                    row.get("Statistical reliability")
-                ),
+                "renters_pct": normalise_percent(row.get("Percent renters in market")),
+                "vacancy_pct": normalise_plain(row.get("Vacancy rate")),
+                "demand_supply_ratio": normalise_plain(row.get("Demand to Supply Ratio")),
+                "stock_on_market_pct": normalise_plain(row.get("Percent stock on market")),
+                "gross_rental_yield": normalise_percent(row.get("Gross rental yield")),
+                "statistical_reliability": normalise_plain(row.get("Statistical reliability")),
             }
 
             decision, failed = evaluate_buy_gates(factors)
