@@ -1,260 +1,208 @@
 import streamlit as st
 import pandas as pd
+from io import BytesIO
+from engine import evaluate_buy_gates, calculate_confidence
 
-# ============================================================
-# SAFE ENGINE IMPORT (Streamlit Cloud compatible)
-# ============================================================
-try:
-    from engine import evaluate_suburb
-except Exception:
-    st.error("❌ Could not load engine.py. Ensure engine.py is in the app root.")
-    st.stop()
-
-# ============================================================
-# APP SETUP
-# ============================================================
 st.set_page_config(page_title="Property Investment Accelerator Matcher", layout="wide")
 st.title("🏠 Property Investment Accelerator Matcher")
 st.subheader("Two‑Stage Discovery + Authoritative Logic Engine")
 
-# ============================================================
-# VIEW MODE
-# ============================================================
-view_mode = st.radio("View Mode", ("Client", "Advisor"), horizontal=True)
+# ====================== SESSION STATE ======================
+if "dsr_discovery_df" not in st.session_state:
+    st.session_state.dsr_discovery_df = None
+if "explorer_discovery_df" not in st.session_state:
+    st.session_state.explorer_discovery_df = None
+if "dsr_selected_suburbs" not in st.session_state:
+    st.session_state.dsr_selected_suburbs = set()
+if "explorer_selected_suburbs" not in st.session_state:
+    st.session_state.explorer_selected_suburbs = set()
 
-# ============================================================
-# SESSION STATE
-# ============================================================
-for k, v in {
-    "dsr_discovery_df": None,
-    "explorer_discovery_df": None,
-    "selected_suburbs": set(),
-    "saved_shortlists": {},
-}.items():
-    if k not in st.session_state:
-        st.session_state[k] = v
-
-# ============================================================
-# CLIENT MODE
-# ============================================================
+# ====================== CLIENT MODE ======================
 client_mode = st.radio("Client Type", ("DSR Upload", "Explorer"), horizontal=True)
 
-# ============================================================
-# STAGE 1 — DISCOVERY (VISIBILITY ONLY)
-# ============================================================
+# ====================== STAGE 1 — DISCOVERY FILTERS ======================
 st.markdown("## 🟩 Stage 1 — Discovery Filters (Preferences Only)")
+st.caption("Soft filters only. No investment logic or BUY gates applied here.")
 
-state = st.selectbox(
-    "State", ["All", "NSW", "VIC", "QLD", "TAS", "NT", "WA", "SA"]
-)
-max_dom = st.slider("Maximum Days on Market", 0, 180, 90)
-max_price = st.slider(
-    "Maximum Median Price ($)",
-    200_000, 2_000_000, 1_000_000,
-    step=50_000,
-)
+col1, col2 = st.columns(2)
+with col1:
+    selected_state = st.selectbox(
+        "State",
+        ["All", "NSW", "VIC", "QLD", "TAS", "NT", "WA", "SA"]
+    )
+    max_dom = st.slider("Maximum Days on Market", 0, 180, 90)
 
-def to_float(val):
+with col2:
+    max_price = st.slider(
+        "Maximum Median Price ($)",
+        200_000, 2_000_000, 1_000_000,
+        step=50_000
+    )
+    min_yield = st.slider(
+        "Minimum Gross Rental Yield (%)",
+        3.0, 8.0, 4.0
+    )
+# ====================== RESET BUTTON ======================
+if st.button("Reset"):
+    st.session_state.dsr_discovery_df = None
+    st.session_state.explorer_discovery_df = None
+    st.session_state.dsr_selected_suburbs = set()
+    st.session_state.explorer_selected_suburbs = set()
+# ====================== NORMALISATION HELPERS ======================
+def normalise_plain(val):
+    if pd.isna(val):
+        return None
     try:
-        return float(val)
-    except Exception:
+        return float(str(val).replace("%", "").strip())
+    except:
         return None
 
-# ============================================================
-# DSR UPLOAD
-# ============================================================
+def normalise_percent(val):
+    if pd.isna(val):
+        return None
+    try:
+        v = float(str(val).replace("%", "").strip())
+        return v * 100 if v <= 1 else v
+    except:
+        return None
+
+# ====================== DSR UPLOAD MODE ======================
 if client_mode == "DSR Upload":
     uploaded_file = st.file_uploader("Upload your DSR Excel file", type=["xlsx"])
-
     if uploaded_file and st.button("Apply Discovery Filters"):
-        df = pd.read_excel(uploaded_file)
+        df = pd.read_excel(uploaded_file, sheet_name="Sheet1")
 
-        df = df[
-            ((df["State"] == state) | (state == "All")) &
-            (df["Days on market"].apply(to_float) <= max_dom) &
-            (df["Median 12 months"].apply(to_float) <= max_price)
-        ]
+        discovered = []
 
-        st.session_state.dsr_discovery_df = df
+        for _, r in df.iterrows():
+            if selected_state != "All" and r.get("State") != selected_state:
+                continue
 
-# ============================================================
-# EXPLORER DEMO (Yield included for consistency)
-# ============================================================
+            dom = normalise_plain(
+                str(r.get("Days on market", "")).replace("days", "")
+            )
+            price = (
+                normalise_plain(r.get("Typical value"))
+                or normalise_plain(r.get("Median 12 months"))
+            )
+            yld = normalise_percent(r.get("Gross rental yield"))
+
+            # ✅ STAGE 1 — STRUCTURAL FILTERS ONLY
+            if dom is None or dom > max_dom:
+                continue
+            if price is not None and price > max_price:
+                continue
+
+            discovered.append({
+                "State": r.get("State"),
+                "Suburb": r.get("Suburb"),
+                "Median Price": price,
+                "Days on Market": dom,
+                "Yield %": round(yld, 2) if yld is not None else None,
+                "_row": r
+            })
+
+        st.session_state.dsr_discovery_df = pd.DataFrame(discovered)
+
+# ====================== EXPLORER MODE ======================
 if client_mode == "Explorer" and st.button("Apply Discovery Filters"):
-    st.session_state.explorer_discovery_df = pd.DataFrame([
+    demo_data = [
         {
+            "State": "NSW",
             "Suburb": "Grafton",
+            "Median Price": 520000,
+            "Days on Market": 39,
             "Yield %": 5.34,
-            "_row": {
-                "Days on market": 39,
-                "Vacancy rate": 1.8,
-                "Percent stock on market": 1.2,
-                "Gross rental yield": 5.34,
-                "Percent renters in market": 32,
-                "Statistical reliability": 85
-            }
+            "_row": {}
         },
         {
+            "State": "QLD",
             "Suburb": "Norville",
+            "Median Price": 570000,
+            "Days on Market": 43,
             "Yield %": 5.08,
-            "_row": {
-                "Days on market": 43,
-                "Vacancy rate": 2.4,
-                "Percent stock on market": 1.7,
-                "Gross rental yield": 5.08,
-                "Percent renters in market": 28,
-                "Statistical reliability": 80
-            }
+            "_row": {}
         },
-    ])
+    ]
 
-# ============================================================
-# SELECT ACTIVE DATASET
-# ============================================================
-df = (
-    st.session_state.dsr_discovery_df
-    if client_mode == "DSR Upload"
-    else st.session_state.explorer_discovery_df
-)
+    df = pd.DataFrame(demo_data)
+    df = df[
+        (df["Median Price"] <= max_price) &
+        (df["Days on Market"] <= max_dom)
+    ]
+    st.session_state.explorer_discovery_df = df
 
-# ============================================================
-# STAGE 1 RESULTS
-# ============================================================
-if df is not None and not df.empty:
-    st.markdown(f"## 📍 Discovery Results ({len(df)} suburbs)")
+# ====================== STAGE 1 RESULTS — SINGLE TABLE ======================
+current_discovery_df = None
+current_selected_suburbs = set()
+if client_mode == "DSR Upload" and st.session_state.dsr_discovery_df is not None and not st.session_state.dsr_discovery_df.empty:
+    current_discovery_df = st.session_state.dsr_discovery_df
+    current_selected_suburbs = st.session_state.dsr_selected_suburbs
+elif client_mode == "Explorer" and st.session_state.explorer_discovery_df is not None and not st.session_state.explorer_discovery_df.empty:
+    current_discovery_df = st.session_state.explorer_discovery_df
+    current_selected_suburbs = st.session_state.explorer_selected_suburbs
 
-    display_cols = ["Suburb"]
-    if "Yield %" in df.columns:
-        display_cols.append("Yield %")
+if current_discovery_df is not None and not current_discovery_df.empty:
+    st.markdown("## 📍 Discovery Results")
 
-    st.dataframe(df[display_cols], use_container_width=True)
+    df_display = current_discovery_df.copy()
+    df_display["Median Price"] = df_display["Median Price"].apply(
+        lambda x: f"${x:,.0f}" if pd.notna(x) else ""
+    )
 
-    suburbs = df.index.tolist()
+    st.dataframe(
+        df_display[
+            ["State", "Suburb", "Median Price", "Days on Market", "Yield %"]
+        ],
+        use_container_width=True
+    )
+
+    # single selector – no duplicate listing
+    all_suburbs = current_discovery_df["Suburb"].tolist()
     selected = st.multiselect(
         "Select suburbs for Deep Analysis",
-        suburbs,
-        default=list(st.session_state.selected_suburbs & set(suburbs)),
+        options=all_suburbs,
+        default=list(current_selected_suburbs) # Convert set to list for default value
     )
-    st.session_state.selected_suburbs = set(selected)
+    if client_mode == "DSR Upload":
+        st.session_state.dsr_selected_suburbs = set(selected)
+        current_selected_suburbs = st.session_state.dsr_selected_suburbs
+    else:
+        st.session_state.explorer_selected_suburbs = set(selected)
+        current_selected_suburbs = st.session_state.explorer_selected_suburbs
 
-    # ========================================================
-    # SHORTLIST LOADER
-    # ========================================================
-    if st.session_state.saved_shortlists:
-        shortlist_name = st.selectbox(
-            "Load shortlist",
-            list(st.session_state.saved_shortlists.keys())
-        )
-        if st.button("Load Selected Shortlist"):
-            shortlist_df = st.session_state.saved_shortlists[shortlist_name]
-            st.session_state.selected_suburbs = set(
-                df[df["Suburb"].isin(shortlist_df["Suburb"])].index
-            )
-            st.experimental_rerun()
-
-    # ========================================================
-    # STAGE 2 — DEEP ANALYSIS (ENGINE)
-    # ========================================================
-    if st.button("Run Deep Analysis"):
+# ====================== STAGE 2 — DEEP ANALYSIS ======================
+if current_selected_suburbs:
+    st.markdown("## 🟥 Stage 2 — Deep Analysis (Authoritative Engine)")
+    if st.button("Run Deep Analysis on Selected Suburbs"):
         results = []
+        for _, r in current_discovery_df.iterrows():
+            if r["Suburb"] not in current_selected_suburbs:
+                continue
 
-        for i in selected:
-            row = df.loc[i]
-            analysis = evaluate_suburb(row["_row"])
-            analysis["Suburb"] = row.get("Suburb", i)
-            results.append(analysis)
+            row = r["_row"]
 
-        results_df = pd.DataFrame(results)
-
-        # ====================================================
-        # SORTING (Advisor only)
-        # ====================================================
-        if view_mode == "Advisor":
-            sort_by = st.selectbox(
-                "Sort results by",
-                ("Confidence Score", "Demand Score")
-            )
-            results_df = results_df.sort_values(sort_by, ascending=False)
-
-        # ====================================================
-        # CONFIDENCE BADGES
-        # ====================================================
-        def confidence_badge(val):
-            if val == "High":
-                return "🟢 High"
-            if val == "Medium":
-                return "🟠 Medium"
-            return "🔴 Low"
-
-        results_df["Confidence"] = results_df["Confidence"].apply(confidence_badge)
-
-        # ====================================================
-        # DISPLAY COLUMNS
-        # ====================================================
-        display_cols = [
-            "Suburb", "Decision", "Confidence",
-            "Market Cycle", "Explanation"
-        ]
-
-        if view_mode == "Advisor":
-            display_cols += [
-                "Confidence Score",
-                "Demand Score",
-                "Failed Gates"
-            ]
-
-        st.dataframe(results_df[display_cols], use_container_width=True)
-
-        # ====================================================
-        # SAVE SHORTLIST
-        # ====================================================
-        shortlist_name = st.text_input("Save current shortlist as")
-        if st.button("💾 Save Shortlist") and shortlist_name:
-            st.session_state.saved_shortlists[shortlist_name] = results_df
-
-        # ====================================================
-        # MARKET CYCLE CHART (Advisor only)
-        # ====================================================
-        if view_mode == "Advisor":
-            st.markdown("### Market Cycle Distribution")
-
-            cycle_counts = results_df["Market Cycle"].value_counts()
-
-            cycle_colors = {
-                "Expansion": "#2E7D32",
-                "Early Upswing": "#66BB6A",
-                "Late Cycle / Peak": "#FFA726",
-                "Stagnation": "#90A4AE",
-                "Downturn": "#D32F2F",
+            factors = {
+                "renters_pct": normalise_percent(row.get("Percent renters in market")),
+                "vacancy_pct": normalise_plain(row.get("Vacancy rate")),
+                "demand_supply_ratio": normalise_plain(row.get("Demand to Supply Ratio")),
+                "stock_on_market_pct": normalise_plain(row.get("Percent stock on market")),
+                "gross_rental_yield": normalise_percent(row.get("Gross rental yield")),
+                "statistical_reliability": normalise_plain(row.get("Statistical reliability")),
             }
 
-            colors = [cycle_colors.get(c, "#888888") for c in cycle_counts.index]
+            decision, failed = evaluate_buy_gates(factors)
+            score, band = calculate_confidence(decision)
 
-            try:
-                import matplotlib.pyplot as plt
-                fig, ax = plt.subplots()
-                cycle_counts.plot(kind="bar", color=colors, ax=ax)
-                ax.set_ylabel("Suburbs")
-                ax.set_xlabel("Market Cycle")
-                st.pyplot(fig)
-            except ModuleNotFoundError:
-                st.bar_chart(cycle_counts)
-                st.caption("📊 Streamlit chart used (matplotlib unavailable).")
+            results.append({
+                "Suburb": r["Suburb"],
+                "Decision": decision,
+                "Confidence": band,
+                "Confidence Score": score,
+                "Failed Gates": ", ".join(failed) if failed else "None"
+            })
 
-            # Confidence legend
-            st.markdown("**Confidence Legend:**")
-            st.markdown("- 🟢 **High** — Strong alignment with investment criteria")
-            st.markdown("- 🟠 **Medium** — Moderate risks or partial constraints")
-            st.markdown("- 🔴 **Low** — Material risks or failing gates")
-
-        # ====================================================
-        # EXPORT
-        # ====================================================
-        st.download_button(
-            "📥 Download Results (CSV)",
-            results_df.to_csv(index=False).encode("utf-8"),
-            "analysis_results.csv",
-            "text/csv"
-        )
+        st.subheader("✅ Deep Analysis Results")
+        st.dataframe(pd.DataFrame(results), use_container_width=True)
 
 st.caption("Property Investment Accelerator — Authoritative Logic Engine")
