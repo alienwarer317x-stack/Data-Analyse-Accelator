@@ -75,14 +75,12 @@ def normalise_percent(val):
 def scrape_sqm_10yr_pa(suburb, postcode):
     try:
         url = f"https://sqmresearch.com.au/property-price-growth.php?region={postcode}&type=house"
-        headers = {"User-Agent": "Mozilla/5.0"}
-        r = requests.get(url, headers=headers, timeout=12)
+        r = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=12)
         soup = BeautifulSoup(r.text, "html.parser")
-        # Look for 10-year p.a. growth (adjust if needed)
         for text in soup.find_all(string=lambda t: t and "10 Years" in t):
             try:
-                value = float(text.strip().replace("%", ""))
-                return value
+                val = float(text.strip().replace("%", ""))
+                return val
             except:
                 continue
         return None
@@ -92,14 +90,12 @@ def scrape_sqm_10yr_pa(suburb, postcode):
 def scrape_onthehouse_10yr_total(suburb, postcode):
     try:
         url = f"https://www.onthehouse.com.au/property/{suburb.lower().replace(' ', '-')}-{postcode}"
-        headers = {"User-Agent": "Mozilla/5.0"}
-        r = requests.get(url, headers=headers, timeout=12)
+        r = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=12)
         soup = BeautifulSoup(r.text, "html.parser")
-        # Look for 10-year total growth
         for text in soup.find_all(string=lambda t: t and "10 Years" in t):
             try:
-                value = float(text.strip().replace("%", ""))
-                return value
+                val = float(text.strip().replace("%", ""))
+                return val
             except:
                 continue
         return None
@@ -109,27 +105,26 @@ def scrape_onthehouse_10yr_total(suburb, postcode):
 def scrape_htag_10yr_total(suburb, postcode):
     try:
         url = f"https://www.htag.com.au/{suburb.lower().replace(' ', '-')}-{postcode}"
-        headers = {"User-Agent": "Mozilla/5.0"}
-        r = requests.get(url, headers=headers, timeout=12)
+        r = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=12)
         soup = BeautifulSoup(r.text, "html.parser")
         for text in soup.find_all(string=lambda t: t and "10Y" in t):
             try:
-                value = float(text.strip().replace("%", ""))
-                return value
+                val = float(text.strip().replace("%", ""))
+                return val
             except:
                 continue
         return None
     except:
         return None
 
-# ====================== RW-CAGR CALCULATION (now with all 3 scrapers) ======================
+# ====================== RW-CAGR CALCULATION ======================
 def calculate_rw_cagr(row):
     sqm_pa = normalise_plain(row.get("SQM 10 years GR% p.a."))
     oth_total = normalise_plain(row.get("Onthehouse 10yrs GR%"))
     htag_total = normalise_plain(row.get("Htag 10 years GR%"))
 
     # Auto-scrape if missing
-    if (sqm_pa is None or oth_total is None or htag_total is None) and row.get("Post Code"):
+    if row.get("Post Code"):
         postcode = str(row.get("Post Code")).strip()
         suburb = str(row.get("Suburb")).strip()
         if sqm_pa is None:
@@ -139,7 +134,6 @@ def calculate_rw_cagr(row):
         if htag_total is None:
             htag_total = scrape_htag_10yr_total(suburb, postcode)
 
-    # Convert total growth to CAGR
     def to_cagr(total):
         if total is None:
             return None
@@ -172,7 +166,7 @@ if client_mode == "DSR Upload":
             discovered.append({
                 "State": r.get("State"),
                 "Suburb": r.get("Suburb"),
-                "Post Code": r.get("Post Code"),          # needed for scraping
+                "Post Code": r.get("Post Code"),
                 "Median Price": price,
                 "Days on Market": dom,
                 "Yield %": round(yld, 2) if yld is not None else None,
