@@ -1,3 +1,4 @@
+from ingestion.dsr_adapter import build_row_from_dsr
 import streamlit as st
 import pandas as pd
 from io import BytesIO
@@ -99,7 +100,7 @@ if client_mode == "DSR Upload":
                 "Median Price": price,
                 "Days on Market": dom,
                 "Yield %": round(yld, 2) if yld is not None else None,
-                "_row": r
+                "_row": build_row_from_dsr(r)
             })
 
         st.session_state.dsr_discovery_df = pd.DataFrame(discovered)
