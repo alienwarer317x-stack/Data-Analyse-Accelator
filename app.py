@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 from io import BytesIO
-from engine import evaluate_buy_gates, calculate_confidence
+from engine import evaluate_buy_gates, calculate_confidence, evaluate_suburb   # ← using your latest engine
 
 st.set_page_config(page_title="Property Investment Accelerator Matcher", layout="wide")
 st.title("🏠 Property Investment Accelerator Matcher")
@@ -49,6 +49,7 @@ if st.button("Reset"):
     st.session_state.explorer_discovery_df = None
     st.session_state.dsr_selected_suburbs = set()
     st.session_state.explorer_selected_suburbs = set()
+    st.session_state.shortlist = []
 
 # ====================== NORMALISATION HELPERS ======================
 def normalise_plain(val):
@@ -128,10 +129,8 @@ if current_discovery_df is not None and not current_discovery_df.empty:
     )
     if client_mode == "DSR Upload":
         st.session_state.dsr_selected_suburbs = set(selected)
-        current_selected_suburbs = st.session_state.dsr_selected_suburbs
     else:
         st.session_state.explorer_selected_suburbs = set(selected)
-        current_selected_suburbs = st.session_state.explorer_selected_suburbs
 
 # ====================== STAGE 2 — DEEP ANALYSIS ======================
 if current_selected_suburbs:
@@ -142,27 +141,24 @@ if current_selected_suburbs:
             if r["Suburb"] not in current_selected_suburbs:
                 continue
             row = r["_row"]
-            factors = {
-                "renters_pct": normalise_percent(row.get("Percent renters in market")),
-                "vacancy_pct": normalise_plain(row.get("Vacancy rate")),
-                "demand_supply_ratio": normalise_plain(row.get("Demand to Supply Ratio")),
-                "stock_on_market_pct": normalise_plain(row.get("Percent stock on market")),
-                "gross_rental_yield": normalise_percent(row.get("Gross rental yield")),
-                "statistical_reliability": normalise_plain(row.get("Statistical reliability")),
-            }
-            decision, failed = evaluate_buy_gates(factors)
-            score, band = calculate_confidence(decision)
+            
+            # Use your latest evaluate_suburb (rich output)
+            result = evaluate_suburb(row)
+            
             results.append({
                 "Suburb": r["Suburb"],
-                "Decision": decision,
-                "Confidence": band,
-                "Confidence Score": score,
-                "Failed Gates": ", ".join(failed) if failed else "None"
+                "Decision": result["Decision"],
+                "Confidence": result["Confidence"],
+                "Confidence Score": result["Confidence Score"],
+                "Failed Gates": ", ".join(result["Failed Gates"]) if result["Failed Gates"] else "None",
+                "Market Cycle": result.get("Market Cycle", "N/A"),
+                "RW-CAGR": "Coming in next update",   # placeholder
+                "Explanation": result.get("Explanation", "")
             })
         st.subheader("✅ Deep Analysis Results")
         st.dataframe(pd.DataFrame(results), use_container_width=True)
 
-# ====================== SHORTLIST (NEW ADDITION) ======================
+# ====================== SHORTLIST (NEW) ======================
 if st.session_state.get("shortlist"):
     st.markdown("## 📋 Shortlist")
     st.write(st.session_state.shortlist)
