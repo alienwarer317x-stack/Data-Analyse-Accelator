@@ -76,6 +76,7 @@ if client_mode == "DSR Upload":
         discovered = []
 
         for _, r in df.iterrows():
+            st.write("DSR columns:", list(r.index))
             if selected_state != "All" and r.get("State") != selected_state:
                 continue
 
