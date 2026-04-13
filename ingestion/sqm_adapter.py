@@ -3,13 +3,6 @@ from bs4 import BeautifulSoup
 
 
 def to_float(val):
-    """
-    Safely converts SQM scraped values into floats.
-    Examples:
-      "0.73%"   -> 0.73
-      "41 days" -> 41.0
-      None      -> None
-    """
     try:
         return float(
             str(val)
@@ -21,3 +14,39 @@ def to_float(val):
         )
     except:
         return None
+
+
+def _fetch_sqm_page(url):
+    try:
+        response = requests.get(
+            url,
+            headers={"User-Agent": "Mozilla/5.0 (compatible; MarketExplorer/1.0)"},
+            timeout=15
+        )
+        if response.status_code != 200:
+            return None
+        return response.text
+    except:
+        return None
+
+
+def _build_vacancy_url(state, suburb):
+    region = f"{state.upper()}-{suburb.replace(' ', '+')}"
+    return f"https://sqmresearch.com.au/graph_vacancy_rate.php?region={region}"
+
+
+def fetch_vacancy_rate(state, suburb):
+    url = _build_vacancy_url(state, suburb)
+    html = _fetch_sqm_page(url)
+    if not html:
+        return None
+
+    soup = BeautifulSoup(html, "html.parser")
+    candidates = soup.find_all(string=lambda t: t and "%" in t)
+
+    for text in candidates:
+        value = to_float(text)
+        if value is not None and 0 <= value <= 10:
+            return value
+
+    return None
