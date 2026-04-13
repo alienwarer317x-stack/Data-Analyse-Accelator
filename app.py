@@ -69,29 +69,37 @@ def normalise_percent(val):
     except:
         return None
 
-# ====================== RW-CAGR CALCULATION (NEW) ======================
+# ====================== RW-CAGR CALCULATION (IMPROVED) ======================
 def calculate_rw_cagr(row):
-    # SQM is already p.a. → use directly
-    sqm_pa = normalise_plain(row.get("SQM 10 years GR% p.a."))
-    
-    # OTH and Htag are total 10-year growth → convert to CAGR
-    oth_total = normalise_plain(row.get("Onthehouse 10yrs GR%"))
-    htag_total = normalise_plain(row.get("Htag 10 years GR%"))
-    
-    if oth_total is not None:
-        oth_cagr = ((1 + oth_total/100) ** (1/10) - 1) * 100
-    else:
-        oth_cagr = None
-    
-    if htag_total is not None:
-        htag_cagr = ((1 + htag_total/100) ** (1/10) - 1) * 100
-    else:
-        htag_cagr = None
-    
-    # Average the three (SQM already annualised)
+    # Try all possible column name variations from your DSR + master template
+    sqm_pa = None
+    oth_total = None
+    htag_total = None
+
+    for col in row.index:
+        col_str = str(col).lower().strip()
+        val = normalise_plain(row[col])
+        if val is None:
+            continue
+        if "sqm" in col_str and ("10" in col_str or "years" in col_str) and "p.a" in col_str:
+            sqm_pa = val
+        elif "onthehouse" in col_str or "oth" in col_str:
+            oth_total = val
+        elif "htag" in col_str:
+            htag_total = val
+
+    # Convert total growth to CAGR
+    def to_cagr(total):
+        if total is None:
+            return None
+        return round(((1 + total / 100) ** (1/10) - 1) * 100, 2)
+
+    oth_cagr = to_cagr(oth_total)
+    htag_cagr = to_cagr(htag_total)
+
     values = [v for v in [sqm_pa, oth_cagr, htag_cagr] if v is not None]
     if len(values) == 0:
-        return "N/A"
+        return "N/A - missing 10yr growth columns"
     return round(sum(values) / len(values), 2)
 
 # ====================== DSR UPLOAD MODE ======================
@@ -179,7 +187,7 @@ if current_selected_suburbs:
             decision, failed = evaluate_buy_gates(factors)
             score, band = calculate_confidence(decision)
 
-            rw_cagr = calculate_rw_cagr(row)   # ← Real calculation added
+            rw_cagr = calculate_rw_cagr(row)
 
             results.append({
                 "Suburb": r["Suburb"],
