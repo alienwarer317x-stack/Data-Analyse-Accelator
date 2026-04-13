@@ -62,6 +62,12 @@ def filter_df(df, state, max_dom, max_price, min_yield):
     if df is None or df.empty:
         return pd.DataFrame()
 
+    df = df.copy()
+
+    # ✅ Coerce columns to numeric safely
+    df["Days on Market"] = pd.to_numeric(df["Days on Market"], errors="coerce")
+    df["Median Price"] = pd.to
+
     filtered = df[
         (df["Days on Market"] <= max_dom) &
         (df["Median Price"] <= max_price) &
