@@ -1,7 +1,5 @@
 import streamlit as st
 import pandas as pd
-import requests
-from bs4 import BeautifulSoup
 from io import BytesIO
 from engine import evaluate_buy_gates, calculate_confidence
 
@@ -29,11 +27,21 @@ st.markdown("## 🟩 Stage 1 — Discovery Filters (Preferences Only)")
 st.caption("Soft filters only. No investment logic or BUY gates applied here.")
 col1, col2 = st.columns(2)
 with col1:
-    selected_state = st.selectbox("State", ["All", "NSW", "VIC", "QLD", "TAS", "NT", "WA", "SA"])
+    selected_state = st.selectbox(
+        "State",
+        ["All", "NSW", "VIC", "QLD", "TAS", "NT", "WA", "SA"]
+    )
     max_dom = st.slider("Maximum Days on Market", 0, 180, 90)
 with col2:
-    max_price = st.slider("Maximum Median Price ($)", 200_000, 2_000_000, 1_000_000, step=50_000)
-    min_yield = st.slider("Minimum Gross Rental Yield (%)", 3.0, 8.0, 4.0)
+    max_price = st.slider(
+        "Maximum Median Price ($)",
+        200_000, 2_000_000, 1_000_000,
+        step=50_000
+    )
+    min_yield = st.slider(
+        "Minimum Gross Rental Yield (%)",
+        3.0, 8.0, 4.0
+    )
 
 # ====================== RESET BUTTON ======================
 if st.button("Reset"):
@@ -45,47 +53,45 @@ if st.button("Reset"):
 
 # ====================== NORMALISATION HELPERS ======================
 def normalise_plain(val):
-    if pd.isna(val): return None
-    try: return float(str(val).replace("%", "").strip())
-    except: return None
+    if pd.isna(val):
+        return None
+    try:
+        return float(str(val).replace("%", "").strip())
+    except:
+        return None
 
 def normalise_percent(val):
-    if pd.isna(val): return None
+    if pd.isna(val):
+        return None
     try:
         v = float(str(val).replace("%", "").strip())
         return v * 100 if v <= 1 else v
-    except: return None
-
-# ====================== AUTO-SCRAPERS (NEW) ======================
-def scrape_10yr_growth(suburb, postcode, source="all"):
-    """Basic scraper for SQM, OnTheHouse, HTAG - returns dict of values"""
-    try:
-        headers = {"User-Agent": "Mozilla/5.0"}
-        # HTAG example
-        if source in ["htag", "all"]:
-            url = f"https://www.htag.com.au/{suburb.lower()}-{postcode}"
-            r = requests.get(url, headers=headers, timeout=10)
-            soup = BeautifulSoup(r.text, "html.parser")
-            # Look for 10Y value in chart (adjust selector if needed)
-            htag_10y = None
-            for elem in soup.find_all(text=lambda t: t and "10Y" in t):
-                try:
-                    htag_10y = float(elem.strip().replace("%", ""))
-                    break
-                except: pass
-        # Add similar simple scrapers for SQM and OnTheHouse later
-        return {"SQM 10 years GR% p.a.": None, "Onthehouse 10yrs GR%": None, "Htag 10 years GR%": htag_10y}
     except:
-        return {"SQM 10 years GR% p.a.": None, "Onthehouse 10yrs GR%": None, "Htag 10 years GR%": None}
+        return None
 
-# ====================== RW-CAGR CALCULATION ======================
+# ====================== RW-CAGR CALCULATION (IMPROVED) ======================
 def calculate_rw_cagr(row):
-    sqm_pa = normalise_plain(row.get("SQM 10 years GR% p.a."))
-    oth_total = normalise_plain(row.get("Onthehouse 10yrs GR%"))
-    htag_total = normalise_plain(row.get("Htag 10 years GR%"))
+    # Try all possible column name variations from your DSR + master template
+    sqm_pa = None
+    oth_total = None
+    htag_total = None
 
+    for col in row.index:
+        col_str = str(col).lower().strip()
+        val = normalise_plain(row[col])
+        if val is None:
+            continue
+        if "sqm" in col_str and ("10" in col_str or "years" in col_str) and "p.a" in col_str:
+            sqm_pa = val
+        elif "onthehouse" in col_str or "oth" in col_str:
+            oth_total = val
+        elif "htag" in col_str:
+            htag_total = val
+
+    # Convert total growth to CAGR
     def to_cagr(total):
-        if total is None: return None
+        if total is None:
+            return None
         return round(((1 + total / 100) ** (1/10) - 1) * 100, 2)
 
     oth_cagr = to_cagr(oth_total)
@@ -108,9 +114,10 @@ if client_mode == "DSR Upload":
             dom = normalise_plain(str(r.get("Days on market", "")).replace("days", ""))
             price = normalise_plain(r.get("Typical value")) or normalise_plain(r.get("Median 12 months"))
             yld = normalise_percent(r.get("Gross rental yield"))
-            if dom is None or dom > max_dom: continue
-            if price is not None and price > max_price: continue
-
+            if dom is None or dom > max_dom:
+                continue
+            if price is not None and price > max_price:
+                continue
             discovered.append({
                 "State": r.get("State"),
                 "Suburb": r.get("Suburb"),
@@ -123,12 +130,15 @@ if client_mode == "DSR Upload":
 
 # ====================== EXPLORER MODE ======================
 if client_mode == "Explorer" and st.button("Apply Discovery Filters"):
-    demo_data = [{"State": "NSW", "Suburb": "Grafton", "Median Price": 520000, "Days on Market": 39, "Yield %": 5.34, "_row": {}}]
+    demo_data = [
+        {"State": "NSW", "Suburb": "Grafton", "Median Price": 520000, "Days on Market": 39, "Yield %": 5.34, "_row": {}},
+        {"State": "QLD", "Suburb": "Norville", "Median Price": 570000, "Days on Market": 43, "Yield %": 5.08, "_row": {}},
+    ]
     df = pd.DataFrame(demo_data)
     df = df[(df["Median Price"] <= max_price) & (df["Days on Market"] <= max_dom)]
     st.session_state.explorer_discovery_df = df
 
-# ====================== STAGE 1 RESULTS ======================
+# ====================== STAGE 1 RESULTS — SINGLE TABLE ======================
 current_discovery_df = None
 current_selected_suburbs = set()
 if client_mode == "DSR Upload" and st.session_state.dsr_discovery_df is not None and not st.session_state.dsr_discovery_df.empty:
@@ -145,7 +155,11 @@ if current_discovery_df is not None and not current_discovery_df.empty:
     st.dataframe(df_display[["State", "Suburb", "Median Price", "Days on Market", "Yield %"]], use_container_width=True)
 
     all_suburbs = current_discovery_df["Suburb"].tolist()
-    selected = st.multiselect("Select suburbs for Deep Analysis", options=all_suburbs, default=list(current_selected_suburbs))
+    selected = st.multiselect(
+        "Select suburbs for Deep Analysis",
+        options=all_suburbs,
+        default=list(current_selected_suburbs)
+    )
     if client_mode == "DSR Upload":
         st.session_state.dsr_selected_suburbs = set(selected)
         current_selected_suburbs = st.session_state.dsr_selected_suburbs
@@ -153,17 +167,26 @@ if current_discovery_df is not None and not current_discovery_df.empty:
         st.session_state.explorer_selected_suburbs = set(selected)
         current_selected_suburbs = st.session_state.explorer_selected_suburbs
 
-# ====================== STAGE 2 ======================
+# ====================== STAGE 2 — DEEP ANALYSIS ======================
 if current_selected_suburbs:
     st.markdown("## 🟥 Stage 2 — Deep Analysis (Authoritative Engine)")
     if st.button("Run Deep Analysis on Selected Suburbs"):
         results = []
         for _, r in current_discovery_df.iterrows():
-            if r["Suburb"] not in current_selected_suburbs: continue
+            if r["Suburb"] not in current_selected_suburbs:
+                continue
             row = r["_row"]
-            factors = { ... }  # your original factors dict
+            factors = {
+                "renters_pct": normalise_percent(row.get("Percent renters in market")),
+                "vacancy_pct": normalise_plain(row.get("Vacancy rate")),
+                "demand_supply_ratio": normalise_plain(row.get("Demand to Supply Ratio")),
+                "stock_on_market_pct": normalise_plain(row.get("Percent stock on market")),
+                "gross_rental_yield": normalise_percent(row.get("Gross rental yield")),
+                "statistical_reliability": normalise_plain(row.get("Statistical reliability")),
+            }
             decision, failed = evaluate_buy_gates(factors)
             score, band = calculate_confidence(decision)
+
             rw_cagr = calculate_rw_cagr(row)
 
             results.append({
@@ -177,7 +200,7 @@ if current_selected_suburbs:
         st.subheader("✅ Deep Analysis Results")
         st.dataframe(pd.DataFrame(results), use_container_width=True)
 
-# Shortlist section (kept from your base)
+# ====================== SHORTLIST ======================
 if st.session_state.get("shortlist"):
     st.markdown("## 📋 Shortlist")
     st.write(st.session_state.shortlist)
