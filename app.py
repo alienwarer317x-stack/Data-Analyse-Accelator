@@ -1,5 +1,7 @@
 import streamlit as st
 import pandas as pd
+import requests
+from bs4 import BeautifulSoup
 from io import BytesIO
 from engine import evaluate_buy_gates, calculate_confidence
 
@@ -69,24 +71,73 @@ def normalise_percent(val):
     except:
         return None
 
-# ====================== RW-CAGR CALCULATION (IMPROVED) ======================
-def calculate_rw_cagr(row):
-    # Try all possible column name variations from your DSR + master template
-    sqm_pa = None
-    oth_total = None
-    htag_total = None
+# ====================== AUTO-SCRAPERS (SQM + OnTheHouse + HTAG) ======================
+def scrape_sqm_10yr_pa(suburb, postcode):
+    try:
+        url = f"https://sqmresearch.com.au/property-price-growth.php?region={postcode}&type=house"
+        headers = {"User-Agent": "Mozilla/5.0"}
+        r = requests.get(url, headers=headers, timeout=12)
+        soup = BeautifulSoup(r.text, "html.parser")
+        # Look for 10-year p.a. growth (adjust if needed)
+        for text in soup.find_all(string=lambda t: t and "10 Years" in t):
+            try:
+                value = float(text.strip().replace("%", ""))
+                return value
+            except:
+                continue
+        return None
+    except:
+        return None
 
-    for col in row.index:
-        col_str = str(col).lower().strip()
-        val = normalise_plain(row[col])
-        if val is None:
-            continue
-        if "sqm" in col_str and ("10" in col_str or "years" in col_str) and "p.a" in col_str:
-            sqm_pa = val
-        elif "onthehouse" in col_str or "oth" in col_str:
-            oth_total = val
-        elif "htag" in col_str:
-            htag_total = val
+def scrape_onthehouse_10yr_total(suburb, postcode):
+    try:
+        url = f"https://www.onthehouse.com.au/property/{suburb.lower().replace(' ', '-')}-{postcode}"
+        headers = {"User-Agent": "Mozilla/5.0"}
+        r = requests.get(url, headers=headers, timeout=12)
+        soup = BeautifulSoup(r.text, "html.parser")
+        # Look for 10-year total growth
+        for text in soup.find_all(string=lambda t: t and "10 Years" in t):
+            try:
+                value = float(text.strip().replace("%", ""))
+                return value
+            except:
+                continue
+        return None
+    except:
+        return None
+
+def scrape_htag_10yr_total(suburb, postcode):
+    try:
+        url = f"https://www.htag.com.au/{suburb.lower().replace(' ', '-')}-{postcode}"
+        headers = {"User-Agent": "Mozilla/5.0"}
+        r = requests.get(url, headers=headers, timeout=12)
+        soup = BeautifulSoup(r.text, "html.parser")
+        for text in soup.find_all(string=lambda t: t and "10Y" in t):
+            try:
+                value = float(text.strip().replace("%", ""))
+                return value
+            except:
+                continue
+        return None
+    except:
+        return None
+
+# ====================== RW-CAGR CALCULATION (now with all 3 scrapers) ======================
+def calculate_rw_cagr(row):
+    sqm_pa = normalise_plain(row.get("SQM 10 years GR% p.a."))
+    oth_total = normalise_plain(row.get("Onthehouse 10yrs GR%"))
+    htag_total = normalise_plain(row.get("Htag 10 years GR%"))
+
+    # Auto-scrape if missing
+    if (sqm_pa is None or oth_total is None or htag_total is None) and row.get("Post Code"):
+        postcode = str(row.get("Post Code")).strip()
+        suburb = str(row.get("Suburb")).strip()
+        if sqm_pa is None:
+            sqm_pa = scrape_sqm_10yr_pa(suburb, postcode)
+        if oth_total is None:
+            oth_total = scrape_onthehouse_10yr_total(suburb, postcode)
+        if htag_total is None:
+            htag_total = scrape_htag_10yr_total(suburb, postcode)
 
     # Convert total growth to CAGR
     def to_cagr(total):
@@ -99,7 +150,7 @@ def calculate_rw_cagr(row):
 
     values = [v for v in [sqm_pa, oth_cagr, htag_cagr] if v is not None]
     if len(values) == 0:
-        return "N/A - missing 10yr growth columns"
+        return "N/A - no 10yr data"
     return round(sum(values) / len(values), 2)
 
 # ====================== DSR UPLOAD MODE ======================
@@ -121,6 +172,7 @@ if client_mode == "DSR Upload":
             discovered.append({
                 "State": r.get("State"),
                 "Suburb": r.get("Suburb"),
+                "Post Code": r.get("Post Code"),          # needed for scraping
                 "Median Price": price,
                 "Days on Market": dom,
                 "Yield %": round(yld, 2) if yld is not None else None,
@@ -131,8 +183,7 @@ if client_mode == "DSR Upload":
 # ====================== EXPLORER MODE ======================
 if client_mode == "Explorer" and st.button("Apply Discovery Filters"):
     demo_data = [
-        {"State": "NSW", "Suburb": "Grafton", "Median Price": 520000, "Days on Market": 39, "Yield %": 5.34, "_row": {}},
-        {"State": "QLD", "Suburb": "Norville", "Median Price": 570000, "Days on Market": 43, "Yield %": 5.08, "_row": {}},
+        {"State": "NSW", "Suburb": "Grafton", "Post Code": "2460", "Median Price": 520000, "Days on Market": 39, "Yield %": 5.34, "_row": {}},
     ]
     df = pd.DataFrame(demo_data)
     df = df[(df["Median Price"] <= max_price) & (df["Days on Market"] <= max_dom)]
@@ -186,7 +237,6 @@ if current_selected_suburbs:
             }
             decision, failed = evaluate_buy_gates(factors)
             score, band = calculate_confidence(decision)
-
             rw_cagr = calculate_rw_cagr(row)
 
             results.append({
