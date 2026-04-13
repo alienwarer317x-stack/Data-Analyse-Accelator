@@ -27,27 +27,15 @@ st.caption("Soft filters only. No investment logic applied here.")
 
 col1, col2 = st.columns(2)
 with col1:
-    selected_state = st.selectbox(
-        "State", ["All", "NSW", "VIC", "QLD", "TAS", "NT", "WA", "SA"]
-    )
+    selected_state = st.selectbox("State", ["All", "NSW", "VIC", "QLD", "TAS", "NT", "WA", "SA"])
     max_dom = st.slider("Maximum Days on Market", 0, 180, 90)
 
 with col2:
-    max_price = st.slider(
-        "Maximum Median Price ($)",
-        200_000, 2_000_000, 1_000_000,
-        step=50_000
-    )
-    min_yield = st.slider(
-        "Minimum Gross Rental Yield (%)",
-        3.0, 8.0, 4.0
-    )
+    max_price = st.slider("Maximum Median Price ($)", 200_000, 2_000_000, 1_000_000, step=50_000)
+    min_yield = st.slider("Minimum Gross Rental Yield (%)", 3.0, 8.0, 4.0)
 
-# ====================== COLUMN NORMALISER (FIX) ======================
+# ====================== COLUMN NORMALISER ======================
 def normalise_columns(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Normalise common DSR column names to Explorer schema.
-    """
     rename_map = {
         "Days on market": "Days on Market",
         "Median 12 months": "Median Price",
@@ -55,7 +43,8 @@ def normalise_columns(df: pd.DataFrame) -> pd.DataFrame:
         "Typical Value": "Median Price",
         "Gross rental yield": "Yield %",
     }
-    return df.rename(columns={k: v for k, v in rename_map.items() if k in df.columns})
+    df = df.rename(columns={k: v for k, v in rename_map.items() if k in df.columns})
+    return df
 
 # ====================== DISCOVERY FILTER ======================
 def filter_df(df, state, max_dom, max_price, min_yield):
@@ -64,17 +53,18 @@ def filter_df(df, state, max_dom, max_price, min_yield):
 
     df = df.copy()
 
-    # ✅ Coerce columns to numeric safely
-    df["Days on Market"] = pd.to_numeric(df["Days on Market"], errors="coerce")
-    df["Median Price"] = pd.to
+    # ✅ Safe numeric coercion
+    df["Days on Market"] = pd.to_numeric(df.get("Days on Market"), errors="coerce")
+    df["Median Price"] = pd.to_numeric(df.get("Median Price"), errors="coerce")
+    df["Yield %"] = pd.to_numeric(df.get("Yield %"), errors="coerce")
 
     filtered = df[
         (df["Days on Market"] <= max_dom) &
         (df["Median Price"] <= max_price) &
-        (pd.to_numeric(df["Yield %"], errors="coerce") >= min_yield)
-    ].copy()
+        (df["Yield %"] >= min_yield)
+    ]
 
-    if state != "All":
+    if selected_state != "All":
         filtered = filtered[filtered["State"] == state]
 
     return filtered
@@ -84,8 +74,7 @@ if client_mode == "DSR Upload":
     uploaded_file = st.file_uploader("Upload your DSR Excel file", type=["xlsx"])
     if uploaded_file and st.button("Apply Discovery Filters"):
         df = pd.read_excel(uploaded_file)
-        df = normalise_columns(df)  # ✅ FIX APPLIED HERE
-
+        df = normalise_columns(df)
         st.session_state.dsr_discovery_df = filter_df(
             df, selected_state, max_dom, max_price, min_yield
         )
@@ -135,7 +124,7 @@ if current_df is not None and not current_df.empty:
     else:
         st.session_state.explorer_selected_suburbs = set(selected)
 
-# ====================== STAGE 2 — ENGINE ======================
+# ====================== STAGE 2 — AUTHORITATIVE ENGINE ======================
 selected_suburbs = (
     st.session_state.dsr_selected_suburbs
     if client_mode == "DSR Upload"
