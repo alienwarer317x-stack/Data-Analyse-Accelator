@@ -71,68 +71,14 @@ def normalise_percent(val):
     except:
         return None
 
-# ====================== AUTO-SCRAPERS (SQM + OnTheHouse + HTAG) ======================
-def scrape_sqm_10yr_pa(suburb, postcode):
-    try:
-        url = f"https://sqmresearch.com.au/property-price-growth.php?region={postcode}&type=house"
-        r = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=12)
-        soup = BeautifulSoup(r.text, "html.parser")
-        for text in soup.find_all(string=lambda t: t and "10 Years" in t):
-            try:
-                val = float(text.strip().replace("%", ""))
-                return val
-            except:
-                continue
-        return None
-    except:
-        return None
-
-def scrape_onthehouse_10yr_total(suburb, postcode):
-    try:
-        url = f"https://www.onthehouse.com.au/property/{suburb.lower().replace(' ', '-')}-{postcode}"
-        r = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=12)
-        soup = BeautifulSoup(r.text, "html.parser")
-        for text in soup.find_all(string=lambda t: t and "10 Years" in t):
-            try:
-                val = float(text.strip().replace("%", ""))
-                return val
-            except:
-                continue
-        return None
-    except:
-        return None
-
-def scrape_htag_10yr_total(suburb, postcode):
-    try:
-        url = f"https://www.htag.com.au/{suburb.lower().replace(' ', '-')}-{postcode}"
-        r = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=12)
-        soup = BeautifulSoup(r.text, "html.parser")
-        for text in soup.find_all(string=lambda t: t and "10Y" in t):
-            try:
-                val = float(text.strip().replace("%", ""))
-                return val
-            except:
-                continue
-        return None
-    except:
-        return None
-
-# ====================== RW-CAGR CALCULATION ======================
+# ====================== RW-CAGR CALCULATION (with full debug) ======================
 def calculate_rw_cagr(row):
-    sqm_pa = normalise_plain(row.get("SQM 10 years GR% p.a."))
-    oth_total = normalise_plain(row.get("Onthehouse 10yrs GR%"))
-    htag_total = normalise_plain(row.get("Htag 10 years GR%"))
+    sqm_pa = normalise_plain(row.get("SQM 10 years GR% p.a.") or row.get("SQM 10yr"))
+    oth_total = normalise_plain(row.get("Onthehouse 10yrs GR%") or row.get("10 Years growth Rate% OTH"))
+    htag_total = normalise_plain(row.get("Htag 10 years GR%") or row.get("Htag 10yr"))
 
-    # Auto-scrape if missing
-    if row.get("Post Code"):
-        postcode = str(row.get("Post Code")).strip()
-        suburb = str(row.get("Suburb")).strip()
-        if sqm_pa is None:
-            sqm_pa = scrape_sqm_10yr_pa(suburb, postcode)
-        if oth_total is None:
-            oth_total = scrape_onthehouse_10yr_total(suburb, postcode)
-        if htag_total is None:
-            htag_total = scrape_htag_10yr_total(suburb, postcode)
+    # Debug info
+    debug = f"SQM: {sqm_pa}, OTH: {oth_total}, HTAG: {htag_total}"
 
     def to_cagr(total):
         if total is None:
@@ -144,7 +90,7 @@ def calculate_rw_cagr(row):
 
     values = [v for v in [sqm_pa, oth_cagr, htag_cagr] if v is not None]
     if len(values) == 0:
-        return "N/A - no 10yr data"
+        return f"N/A - no 10yr data ({debug})"
     return round(sum(values) / len(values), 2)
 
 # ====================== DSR UPLOAD MODE ======================
@@ -166,7 +112,6 @@ if client_mode == "DSR Upload":
             discovered.append({
                 "State": r.get("State"),
                 "Suburb": r.get("Suburb"),
-                "Post Code": r.get("Post Code"),
                 "Median Price": price,
                 "Days on Market": dom,
                 "Yield %": round(yld, 2) if yld is not None else None,
@@ -177,7 +122,7 @@ if client_mode == "DSR Upload":
 # ====================== EXPLORER MODE ======================
 if client_mode == "Explorer" and st.button("Apply Discovery Filters"):
     demo_data = [
-        {"State": "NSW", "Suburb": "Grafton", "Post Code": "2460", "Median Price": 520000, "Days on Market": 39, "Yield %": 5.34, "_row": {}},
+        {"State": "NSW", "Suburb": "Grafton", "Median Price": 520000, "Days on Market": 39, "Yield %": 5.34, "_row": {}},
     ]
     df = pd.DataFrame(demo_data)
     df = df[(df["Median Price"] <= max_price) & (df["Days on Market"] <= max_dom)]
