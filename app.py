@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from engine import evaluate_suburb  # single authoritative entry point
+from engine import evaluate_suburb
 
 st.set_page_config(page_title="Property Investment Accelerator Matcher", layout="wide")
 st.title("🏠 Property Investment Accelerator Matcher")
@@ -26,7 +26,6 @@ st.markdown("## 🟩 Stage 1 — Discovery Filters (Preferences Only)")
 st.caption("Soft filters only. No investment logic applied here.")
 
 col1, col2 = st.columns(2)
-
 with col1:
     selected_state = st.selectbox(
         "State", ["All", "NSW", "VIC", "QLD", "TAS", "NT", "WA", "SA"]
@@ -44,15 +43,21 @@ with col2:
         3.0, 8.0, 4.0
     )
 
-# ====================== RESET ======================
-if st.button("Reset"):
-    st.session_state.dsr_discovery_df = None
-    st.session_state.explorer_discovery_df = None
-    st.session_state.dsr_selected_suburbs = set()
-    st.session_state.explorer_selected_suburbs = set()
-    st.session_state.shortlist = []
+# ====================== COLUMN NORMALISER (FIX) ======================
+def normalise_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Normalise common DSR column names to Explorer schema.
+    """
+    rename_map = {
+        "Days on market": "Days on Market",
+        "Median 12 months": "Median Price",
+        "Typical value": "Median Price",
+        "Typical Value": "Median Price",
+        "Gross rental yield": "Yield %",
+    }
+    return df.rename(columns={k: v for k, v in rename_map.items() if k in df.columns})
 
-# ====================== STAGE 1 FILTER FUNCTION ======================
+# ====================== DISCOVERY FILTER ======================
 def filter_df(df, state, max_dom, max_price, min_yield):
     if df is None or df.empty:
         return pd.DataFrame()
@@ -73,6 +78,8 @@ if client_mode == "DSR Upload":
     uploaded_file = st.file_uploader("Upload your DSR Excel file", type=["xlsx"])
     if uploaded_file and st.button("Apply Discovery Filters"):
         df = pd.read_excel(uploaded_file)
+        df = normalise_columns(df)  # ✅ FIX APPLIED HERE
+
         st.session_state.dsr_discovery_df = filter_df(
             df, selected_state, max_dom, max_price, min_yield
         )
@@ -122,7 +129,7 @@ if current_df is not None and not current_df.empty:
     else:
         st.session_state.explorer_selected_suburbs = set(selected)
 
-# ====================== STAGE 2 — AUTHORITATIVE ENGINE ======================
+# ====================== STAGE 2 — ENGINE ======================
 selected_suburbs = (
     st.session_state.dsr_selected_suburbs
     if client_mode == "DSR Upload"
@@ -143,9 +150,9 @@ if selected_suburbs:
                 st.error(f"Missing or invalid _row snapshot for {r['Suburb']}")
                 continue
 
-            result = evaluate_suburb(r["_row"])
-            result["Suburb"] = r["Suburb"]
-            results.append(result)
+            analysis = evaluate_suburb(r["_row"])
+            analysis["Suburb"] = r["Suburb"]
+            results.append(analysis)
 
         if results:
             st.dataframe(pd.DataFrame(results), use_container_width=True)
