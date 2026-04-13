@@ -1,10 +1,6 @@
 def to_float(val):
     """
     Safely converts messy spreadsheet values into floats.
-    Examples:
-      "45 days" -> 45.0
-      "5.3%"    -> 5.3
-      None      -> None
     """
     try:
         return float(
@@ -22,23 +18,36 @@ def to_float(val):
 def build_row_from_dsr(r):
     """
     Converts one DSR Excel row into a clean _row dict
-    matching the locked data contract.
+    that matches the locked engine contract.
     """
 
     return {
-        # === REQUIRED CORE FIELDS (ENGINE CONTRACT) ===
-        "Vacancy rate": to_float(r.get("Vacancy rate")),
-        "Percent stock on market": to_float(r.get("Percent stock on market")),
-        
-"Days on market": to_float(
-    r.get("Days on market") or r.get("Days on Market")
-),
+        # === REQUIRED BY ENGINE ===
+        "Vacancy rate": to_float(
+            r.get("Vacancy rate") or r.get("Vacancy Rate")
+        ),
 
-        "Gross rental yield": to_float(r.get("Gross rental yield")),
-        "Percent renters in market": to_float(r.get("Percent renters in market")),
-        "Statistical reliability": to_float(r.get("Statistical reliability")),
+        "Percent stock on market": to_float(
+            r.get("Percent stock on market") or r.get("Stock on market")
+        ),
 
-        # === CONTEXT (OPTIONAL BUT USEFUL) ===
+        "Days on market": to_float(
+            r.get("Days on market") or r.get("Days on Market")
+        ),
+
+        "Gross rental yield": to_float(
+            r.get("Gross rental yield") or r.get("Gross Yield")
+        ),
+
+        "Percent renters in market": to_float(
+            r.get("Percent renters in market") or r.get("Renters %")
+        ),
+
+        "Statistical reliability": to_float(
+            r.get("Statistical reliability") or r.get("Reliability")
+        ),
+
+        # === SAFE CONTEXT (NOT USED BY ENGINE) ===
         "State": r.get("State"),
         "Suburb": r.get("Suburb"),
         "Post Code": r.get("Post Code"),
