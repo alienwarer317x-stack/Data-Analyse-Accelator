@@ -29,7 +29,11 @@ def build_row_from_dsr(r):
         # === REQUIRED CORE FIELDS (ENGINE CONTRACT) ===
         "Vacancy rate": to_float(r.get("Vacancy rate")),
         "Percent stock on market": to_float(r.get("Percent stock on market")),
-        "Days on market": to_float(r.get("Days on market")),
+        
+"Days on market": to_float(
+    r.get("Days on market") or r.get("Days on Market")
+),
+
         "Gross rental yield": to_float(r.get("Gross rental yield")),
         "Percent renters in market": to_float(r.get("Percent renters in market")),
         "Statistical reliability": to_float(r.get("Statistical reliability")),
