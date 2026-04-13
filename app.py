@@ -27,14 +27,23 @@ st.caption("Soft filters only. No investment logic applied here.")
 
 col1, col2 = st.columns(2)
 with col1:
-    selected_state = st.selectbox("State", ["All", "NSW", "VIC", "QLD", "TAS", "NT", "WA", "SA"])
+    selected_state = st.selectbox(
+        "State", ["All", "NSW", "VIC", "QLD", "TAS", "NT", "WA", "SA"]
+    )
     max_dom = st.slider("Maximum Days on Market", 0, 180, 90)
 
 with col2:
-    max_price = st.slider("Maximum Median Price ($)", 200_000, 2_000_000, 1_000_000, step=50_000)
-    min_yield = st.slider("Minimum Gross Rental Yield (%)", 3.0, 8.0, 4.0)
+    max_price = st.slider(
+        "Maximum Median Price ($)",
+        200_000, 2_000_000, 1_000_000,
+        step=50_000
+    )
+    min_yield = st.slider(
+        "Minimum Gross Rental Yield (%)",
+        3.0, 8.0, 4.0
+    )
 
-# ====================== COLUMN NORMALISER ======================
+# ====================== COLUMN NORMALISATION ======================
 def normalise_columns(df: pd.DataFrame) -> pd.DataFrame:
     rename_map = {
         "Days on market": "Days on Market",
@@ -43,8 +52,7 @@ def normalise_columns(df: pd.DataFrame) -> pd.DataFrame:
         "Typical Value": "Median Price",
         "Gross rental yield": "Yield %",
     }
-    df = df.rename(columns={k: v for k, v in rename_map.items() if k in df.columns})
-    return df
+    return df.rename(columns={k: v for k, v in rename_map.items() if k in df.columns})
 
 # ====================== DISCOVERY FILTER ======================
 def filter_df(df, state, max_dom, max_price, min_yield):
@@ -53,10 +61,16 @@ def filter_df(df, state, max_dom, max_price, min_yield):
 
     df = df.copy()
 
-    # ✅ Safe numeric coercion
-    df["Days on Market"] = pd.to_numeric(df.get("Days on Market"), errors="coerce")
-    df["Median Price"] = pd.to_numeric(df.get("Median Price"), errors="coerce")
-    df["Yield %"] = pd.to_numeric(df.get("Yield %"), errors="coerce")
+    if "Days on Market" not in df.columns or "Median Price" not in df.columns:
+        return pd.DataFrame()
+
+    df["Days on Market"] = pd.to_numeric(df["Days on Market"], errors="coerce")
+    df["Median Price"] = pd.to_numeric(df["Median Price"], errors="coerce")
+
+    if "Yield %" in df.columns:
+        df["Yield %"] = pd.to_numeric(df["Yield %"], errors="coerce")
+    else:
+        df["Yield %"] = float("nan")
 
     filtered = df[
         (df["Days on Market"] <= max_dom) &
@@ -64,7 +78,7 @@ def filter_df(df, state, max_dom, max_price, min_yield):
         (df["Yield %"] >= min_yield)
     ]
 
-    if selected_state != "All":
+    if state != "All":
         filtered = filtered[filtered["State"] == state]
 
     return filtered
