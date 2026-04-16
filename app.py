@@ -1,3 +1,4 @@
+from ingestion.sqm_adapter import build_row_from_sqm
 from ingestion.dsr_adapter import build_row_from_dsr
 import streamlit as st
 import pandas as pd
@@ -182,7 +183,13 @@ if current_selected_suburbs:
             if r["Suburb"] not in current_selected_suburbs:
                 continue
 
-            row = r["_row"]
+            if client_mode == "DSR Upload":
+    row = r["_row"]
+else:
+    row = build_row_from_sqm(
+        state=r.get("State"),
+        suburb=r.get("Suburb")
+    )
 
             factors = {
                 "renters_pct": normalise_percent(row.get("Percent renters in market")),
