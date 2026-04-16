@@ -189,14 +189,16 @@ if current_selected_suburbs:
                 "Failed Gates": ", ".join(failed),
                 "Narrative": f"Based on authoritative metrics, {r['Suburb']} presents a {decision} profile."
             })
-
-st.subheader("✅ Deep Analysis Results")
+            
+        st.subheader("✅ Deep Analysis Results")
         st.dataframe(
             pd.DataFrame(results)[
                 ["Suburb", "Decision", "Confidence", "Confidence Score", "Failed Gates"]
             ],
             use_container_width=True
         )
+
+
 
         # ✅ Narrative MUST be inside the button block
         st.subheader("🧠 Investment Rationale")
