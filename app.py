@@ -3,7 +3,7 @@ from ingestion.dsr_adapter import build_row_from_dsr
 import streamlit as st
 import pandas as pd
 from io import BytesIO
-from engine import evaluate_buy_gates, calculate_confidence
+from engine import evaluate_suburb, evaluate_buy_gates, calculate_confidence
 
 st.set_page_config(page_title="Property Investment Accelerator Matcher", layout="wide")
 st.title("🏠 Property Investment Accelerator Matcher")
