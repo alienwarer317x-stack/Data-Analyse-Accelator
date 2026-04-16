@@ -198,7 +198,20 @@ if current_selected_suburbs:
             use_container_width=True
         )
 
-        st.subheader("🧠 Investment Rationale")
-        for res in results:
-            with st.expander(f"Why {res['Suburb']} is a {res['Decision']}"):
-                st.markdown(res["Narrative"])
+     st.subheader("🧠 Investment Rationale")
+
+for r in results:
+    with st.expander(f"Why {r['Suburb']} is a {r['Decision']}"):
+        narrative = r["Narrative"]
+
+        st.markdown(f"**{narrative['headline']}**\n")
+
+        if narrative["strengths"]:
+            st.markdown("### ✅ Key Strengths")
+            for s in narrative["strengths"]:
+                st.markdown(f"- {s}")
+
+        if narrative["risks"]:
+            st.markdown("### ⚠️ Key Risks / Constraints")
+            for rsk in narrative["risks"]:
+                st.markdown(f"- {rsk}")
