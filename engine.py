@@ -169,14 +169,23 @@ def evaluate_suburb(row):
 
     confidence_score, confidence_band = calculate_confidence(decision)
 
-    return {
-        "Decision": decision,
-        "Confidence": confidence_band,
-        "Confidence Score": confidence_score,
-        "Demand / Supply Ratio": demand_supply,
-        "Market Cycle": classify_market_cycle(demand_supply),
-        "Failed Gates": failed or ["None"],
-        "Growth": growth,
-        "Structural Fundamentals": structural,
-        "Structural Evaluation": structural_eval,
-    }
+narrative = build_narrative(
+    row=row,
+    decision=decision,
+    growth=growth,
+    demand_supply=demand_supply,
+)
+
+return {
+    "Decision": decision,
+    "Confidence": confidence_band,
+    "Confidence Score": confidence_score,
+    "Demand / Supply Ratio": demand_supply,
+    "Market Cycle": classify_market_cycle(demand_supply),
+    "Failed Gates": failed or ["None"],
+    "Growth": growth,
+    "Narrative": narrative,   # ✅ RESTORED
+    "Structural Fundamentals": structural,
+    "Structural Evaluation": structural_eval,
+}
+
