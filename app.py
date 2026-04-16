@@ -152,8 +152,10 @@ if current_discovery_df is not None and not current_discovery_df.empty:
         current_selected_suburbs = st.session_state.explorer_selected_suburbs
 
 # ====================== STAGE 2 — DEEP ANALYSIS ======================
+# ====================== STAGE 2 — DEEP ANALYSIS ======================
 if current_selected_suburbs:
     st.markdown("## 🟥 Stage 2 — Deep Analysis (Authoritative Engine)")
+
     if st.button("Run Deep Analysis on Selected Suburbs"):
         results = []
 
@@ -161,6 +163,7 @@ if current_selected_suburbs:
             if r["Suburb"] not in current_selected_suburbs:
                 continue
 
+            # Build row depending on mode
             if client_mode == "DSR Upload":
                 row = r["_row"]
             else:
@@ -169,36 +172,27 @@ if current_selected_suburbs:
                     suburb=r.get("Suburb")
                 )
 
-            factors = {
-                "renters_pct": normalise_percent(row.get("Percent renters in market")),
-                "vacancy_pct": normalise_plain(row.get("Vacancy rate")),
-                "demand_supply_ratio": normalise_plain(row.get("Demand to Supply Ratio")),
-                "stock_on_market_pct": normalise_plain(row.get("Percent stock on market")),
-                "gross_rental_yield": normalise_percent(row.get("Gross rental yield")),
-                "statistical_reliability": normalise_plain(row.get("Statistical reliability")),
-            }
-
-            decision, failed = evaluate_buy_gates(factors)
-            score, band = calculate_confidence(decision)
+            analysis = evaluate_suburb(row)
 
             results.append({
                 "Suburb": r["Suburb"],
-                "Decision": decision,
-                "Confidence": band,
-                "Confidence Score": score,
-                "Failed Gates": ", ".join(failed),
-                "Narrative": f"Based on authoritative metrics, {r['Suburb']} presents a {decision} profile."
+                "Decision": analysis["Decision"],
+                "Confidence": analysis["Confidence"],
+                "Confidence Score": analysis["Confidence Score"],
+                "Failed Gates": ", ".join(analysis["Failed Gates"]),
+                "Narrative": analysis["Narrative"],
             })
 
+        # -------- Results table --------
         st.subheader("✅ Deep Analysis Results")
-       st.dataframe(
+        st.dataframe(
             pd.DataFrame(results)[
                 ["Suburb", "Decision", "Confidence", "Confidence Score", "Failed Gates"]
             ],
             use_container_width=True
         )
 
-        # ✅ Narrative MUST be inside the button block
+        # -------- Narrative section --------
         st.subheader("🧠 Investment Rationale")
 
         for res in results:
