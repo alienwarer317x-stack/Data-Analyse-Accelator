@@ -44,12 +44,14 @@ with col2:
         "Minimum Gross Rental Yield (%)",
         3.0, 8.0, 4.0
     )
+
 # ====================== RESET BUTTON ======================
 if st.button("Reset"):
     st.session_state.dsr_discovery_df = None
     st.session_state.explorer_discovery_df = None
     st.session_state.dsr_selected_suburbs = set()
     st.session_state.explorer_selected_suburbs = set()
+
 # ====================== NORMALISATION HELPERS ======================
 def normalise_plain(val):
     if pd.isna(val):
@@ -73,24 +75,19 @@ if client_mode == "DSR Upload":
     uploaded_file = st.file_uploader("Upload your DSR Excel file", type=["xlsx"])
     if uploaded_file and st.button("Apply Discovery Filters"):
         df = pd.read_excel(uploaded_file, sheet_name="Sheet1")
-
         discovered = []
 
         for _, r in df.iterrows():
-            
             if selected_state != "All" and r.get("State") != selected_state:
                 continue
 
-            dom = normalise_plain(
-                str(r.get("Days on market", "")).replace("days", "")
-            )
+            dom = normalise_plain(str(r.get("Days on market", "")).replace("days", ""))
             price = (
                 normalise_plain(r.get("Typical value"))
                 or normalise_plain(r.get("Median 12 months"))
             )
             yld = normalise_percent(r.get("Gross rental yield"))
 
-            # ✅ STAGE 1 — STRUCTURAL FILTERS ONLY
             if dom is None or dom > max_dom:
                 continue
             if price is not None and price > max_price:
@@ -110,34 +107,18 @@ if client_mode == "DSR Upload":
 # ====================== EXPLORER MODE ======================
 if client_mode == "Explorer" and st.button("Apply Discovery Filters"):
     demo_data = [
-        {
-            "State": "NSW",
-            "Suburb": "Grafton",
-            "Median Price": 520000,
-            "Days on Market": 39,
-            "Yield %": 5.34,
-            "_row": {}
-        },
-        {
-            "State": "QLD",
-            "Suburb": "Norville",
-            "Median Price": 570000,
-            "Days on Market": 43,
-            "Yield %": 5.08,
-            "_row": {}
-        },
+        {"State": "NSW", "Suburb": "Grafton", "Median Price": 520000, "Days on Market": 39, "Yield %": 5.34, "_row": {}},
+        {"State": "QLD", "Suburb": "Norville", "Median Price": 570000, "Days on Market": 43, "Yield %": 5.08, "_row": {}},
     ]
 
     df = pd.DataFrame(demo_data)
-    df = df[
-        (df["Median Price"] <= max_price) &
-        (df["Days on Market"] <= max_dom)
-    ]
+    df = df[(df["Median Price"] <= max_price) & (df["Days on Market"] <= max_dom)]
     st.session_state.explorer_discovery_df = df
 
-# ====================== STAGE 1 RESULTS — SINGLE TABLE ======================
+# ====================== STAGE 1 RESULTS ======================
 current_discovery_df = None
 current_selected_suburbs = set()
+
 if client_mode == "DSR Upload" and st.session_state.dsr_discovery_df is not None and not st.session_state.dsr_discovery_df.empty:
     current_discovery_df = st.session_state.dsr_discovery_df
     current_selected_suburbs = st.session_state.dsr_selected_suburbs
@@ -149,24 +130,20 @@ if current_discovery_df is not None and not current_discovery_df.empty:
     st.markdown("## 📍 Discovery Results")
 
     df_display = current_discovery_df.copy()
-    df_display["Median Price"] = df_display["Median Price"].apply(
-        lambda x: f"${x:,.0f}" if pd.notna(x) else ""
-    )
+    df_display["Median Price"] = df_display["Median Price"].apply(lambda x: f"${x:,.0f}" if pd.notna(x) else "")
 
     st.dataframe(
-        df_display[
-            ["State", "Suburb", "Median Price", "Days on Market", "Yield %"]
-        ],
+        df_display[["State", "Suburb", "Median Price", "Days on Market", "Yield %"]],
         use_container_width=True
     )
 
-    # single selector – no duplicate listing
     all_suburbs = current_discovery_df["Suburb"].tolist()
     selected = st.multiselect(
         "Select suburbs for Deep Analysis",
         options=all_suburbs,
-        default=list(current_selected_suburbs) # Convert set to list for default value
+        default=list(current_selected_suburbs)
     )
+
     if client_mode == "DSR Upload":
         st.session_state.dsr_selected_suburbs = set(selected)
         current_selected_suburbs = st.session_state.dsr_selected_suburbs
@@ -179,11 +156,11 @@ if current_selected_suburbs:
     st.markdown("## 🟥 Stage 2 — Deep Analysis (Authoritative Engine)")
     if st.button("Run Deep Analysis on Selected Suburbs"):
         results = []
+
         for _, r in current_discovery_df.iterrows():
             if r["Suburb"] not in current_selected_suburbs:
                 continue
 
-            # ✅ Correctly indented DSR vs Explorer logic
             if client_mode == "DSR Upload":
                 row = r["_row"]
             else:
@@ -204,23 +181,24 @@ if current_selected_suburbs:
             decision, failed = evaluate_buy_gates(factors)
             score, band = calculate_confidence(decision)
 
-        results.append({
-    "Suburb": r["Suburb"],
-    "Decision": analysis["Decision"],
-    "Confidence": analysis["Confidence"],
-    "Confidence Score": analysis["Confidence Score"],
-    "Failed Gates": ", ".join(analysis["Failed Gates"]),
-    "Narrative": analysis["Narrative"],
-})
-st.subheader("✅ Deep Analysis Results")
-    st.dataframe(
-    pd.DataFrame(results)[
-        ["Suburb", "Decision", "Confidence", "Confidence Score", "Failed Gates"]
-    ],
-    use_container_width=True
-)
-st.subheader("🧠 Investment Rationale")
+            results.append({
+                "Suburb": r["Suburb"],
+                "Decision": decision,
+                "Confidence": band,
+                "Confidence Score": score,
+                "Failed Gates": ", ".join(failed),
+                "Narrative": f"Based on authoritative metrics, {r['Suburb']} presents a {decision} profile."
+            })
 
-for res in results:
-    with st.expander(f"Why {res['Suburb']} is a {res['Decision']}"):
-        st.markdown(res["Narrative"])
+        st.subheader("✅ Deep Analysis Results")
+        st.dataframe(
+            pd.DataFrame(results)[
+                ["Suburb", "Decision", "Confidence", "Confidence Score", "Failed Gates"]
+            ],
+            use_container_width=True
+        )
+
+        st.subheader("🧠 Investment Rationale")
+        for res in results:
+            with st.expander(f"Why {res['Suburb']} is a {res['Decision']}"):
+                st.markdown(res["Narrative"])
