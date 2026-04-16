@@ -1,3 +1,4 @@
+from ingestion.abs_adapter import fetch_renters_pct
 import requests
 from bs4 import BeautifulSoup
 
@@ -151,7 +152,7 @@ def build_row_from_sqm(state, suburb):
 
         # Fields to be populated by later ingestion steps
         "Gross rental yield": None,
-        "Percent renters in market": None,
+        "Percent renters in market": fetch_renters_pct(state, suburb),
         "Statistical reliability": None,
 
         # Context
