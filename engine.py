@@ -382,6 +382,138 @@ def evaluate_growth_gates(growth):
         failed.append("10yr CAGR Too High")
 
     return failed
+# ---------------- STRUCTURAL FUNDAMENTALS GATES ----------------
+
+def evaluate_structural_gates(f):
+    """
+    Evaluates long-term structural fundamentals.
+    Returns:
+      {
+        "status": "PASS" | "WARN" | "FAIL" | "EXCELLENT",
+        "failed": [reasons],
+        "warnings": [reasons]
+      }
+    """
+
+    failed = []
+    warnings = []
+    excellence_flags = []
+
+    # --------------------------------------------------
+    # SUPPLY PIPELINE
+    # --------------------------------------------------
+
+    # 18-month building approvals vs total dwellings
+    approvals = f.get("build_approvals_pct_18m")
+    if approvals is not None:
+        if approvals > 8:
+            failed.append("High supply pipeline (building approvals exceed 8% of dwelling stock)")
+        elif approvals >= 6:
+            warnings.append("Elevated supply pipeline (building approvals are rising)")
+
+    # Developable land supply
+    land_supply = f.get("developable_land_supply")
+    if land_supply == "High":
+        failed.append("High developable land supply creates long-term price ceiling")
+    elif land_supply == "Medium":
+        warnings.append("Moderate land availability; future supply should be monitored")
+
+    # --------------------------------------------------
+    # EMPLOYMENT STRUCTURE
+    # --------------------------------------------------
+
+    # Professional occupations growth (2016 & 2021)
+    prof_2016 = f.get("professional_growth_2016")
+    prof_2021 = f.get("professional_growth_2021")
+
+    if prof_2016 is False and prof_2021 is False:
+        failed.append("Professional employment growth lags state benchmarks")
+    elif prof_2016 is False or prof_2021 is False:
+        warnings.append("Mixed professional employment growth across census cycles")
+    elif prof_2016 is True and prof_2021 is True:
+        excellence_flags.append("Strong professional employment growth across cycles")
+
+    # Industry diversification
+    diversified = f.get("industry_diversification")
+    if diversified is False:
+        failed.append("Employment base lacks industry diversification")
+    elif diversified is None:
+        warnings.append("Employment diversification could not be confirmed")
+
+    # Job infrastructure (aggregated qualifying jobs)
+    jobs = f.get("job_infrastructure_count")
+    if jobs is not None:
+        if jobs < 75:
+            failed.append("Insufficient local job infrastructure (<75 anchored jobs)")
+        elif jobs >= 500:
+            excellence_flags.append("Strong anchored employment base (≥500 jobs)")
+        else:
+            # 75–499 jobs
+            warnings.append("Moderate local employment base; reliance on external job markets")
+
+    # --------------------------------------------------
+    # INCOME & AFFORDABILITY
+    # --------------------------------------------------
+
+    income_2016 = f.get("income_growth_2016")
+    income_2021 = f.get("income_growth_2021")
+
+    if income_2016 is False and income_2021 is False:
+        failed.append("Household income growth lags state benchmarks")
+    elif income_2016 is False or income_2021 is False:
+        warnings.append("Household income growth has been mixed relative to state")
+    elif income_2016 is True and income_2021 is True:
+        excellence_flags.append("Household income growth outpaced state benchmarks")
+
+    rent_ok = f.get("rent_stress_low_pct")
+    if rent_ok is not None:
+        if rent_ok < 50:
+            failed.append("High rental stress across households")
+        elif rent_ok < 60:
+            warnings.append("Moderate rental stress levels")
+
+    mortgage_ok = f.get("mortgage_stress_low_pct")
+    if mortgage_ok is not None:
+        if mortgage_ok < 65:
+            failed.append("High mortgage stress across owner-occupiers")
+        elif mortgage_ok < 75:
+            warnings.append("Moderate mortgage stress levels")
+
+    affordability = f.get("housing_affordability")
+    if affordability == "Poor":
+        failed.append("Structural housing affordability is poor")
+    elif affordability == "Neutral":
+        warnings.append("Housing affordability is tightening")
+
+    # --------------------------------------------------
+    # ACCESSIBILITY
+    # --------------------------------------------------
+
+    travel = f.get("average_travel_time")
+    if travel is not None:
+        if travel > 75:
+            failed.append("Excessive travel times reduce long-term attractiveness")
+        elif travel > 45:
+            warnings.append("Longer commute times may limit demand depth")
+
+    # --------------------------------------------------
+    # FINAL STRUCTURAL STATUS
+    # --------------------------------------------------
+
+    if failed:
+        status = "FAIL"
+    elif len(warnings) >= 2:
+        status = "WARN"
+    elif excellence_flags:
+        status = "EXCELLENT"
+    else:
+        status = "PASS"
+
+    return {
+        "status": status,
+        "failed": failed,
+        "warnings": warnings,
+    }
 
 
 # ---------------- CONFIDENCE ----------------
