@@ -1,5 +1,5 @@
-from fundamentals_adapter import get_structural_fundamentals
-from fundamentals_adapter import evaluate_structural_gates
+from ingestion.fundamentals_adapter import get_structural_fundamentals
+from ingestion.fundamentals_adapter import evaluate_structural_gates
 # ============================================================
 # PROPERTY INVESTMENT ACCELERATOR — LOGIC ENGINE
 # Growth + Demand/Supply + Discipline (AUTHORITATIVE)
