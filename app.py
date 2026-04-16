@@ -204,13 +204,23 @@ if current_selected_suburbs:
             decision, failed = evaluate_buy_gates(factors)
             score, band = calculate_confidence(decision)
 
-            results.append({
-                "Suburb": r["Suburb"],
-                "Decision": decision,
-                "Confidence": band,
-                "Confidence Score": score,
-                "Failed Gates": ", ".join(failed) if failed else "None"
-            })
+        results.append({
+    "Suburb": r["Suburb"],
+    "Decision": analysis["Decision"],
+    "Confidence": analysis["Confidence"],
+    "Confidence Score": analysis["Confidence Score"],
+    "Failed Gates": ", ".join(analysis["Failed Gates"]),
+    "Narrative": analysis["Narrative"],
+})
+     st.subheader("✅ Deep Analysis Results")
+st.dataframe(
+    pd.DataFrame(results)[
+        ["Suburb", "Decision", "Confidence", "Confidence Score", "Failed Gates"]
+    ],
+    use_container_width=True
+)
+st.subheader("🧠 Investment Rationale")
 
-        st.subheader("✅ Deep Analysis Results")
-        st.dataframe(pd.DataFrame(results), use_container_width=True)
+for res in results:
+    with st.expander(f"Why {res['Suburb']} is a {res['Decision']}"):
+        st.markdown(res["Narrative"])
