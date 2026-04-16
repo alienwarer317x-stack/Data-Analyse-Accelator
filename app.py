@@ -212,8 +212,8 @@ if current_selected_suburbs:
     "Failed Gates": ", ".join(analysis["Failed Gates"]),
     "Narrative": analysis["Narrative"],
 })
-     st.subheader("✅ Deep Analysis Results")
-st.dataframe(
+st.subheader("✅ Deep Analysis Results")
+    st.dataframe(
     pd.DataFrame(results)[
         ["Suburb", "Decision", "Confidence", "Confidence Score", "Failed Gates"]
     ],
