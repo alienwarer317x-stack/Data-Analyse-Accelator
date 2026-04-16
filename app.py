@@ -190,8 +190,8 @@ if current_selected_suburbs:
                 "Narrative": f"Based on authoritative metrics, {r['Suburb']} presents a {decision} profile."
             })
 
-        st.subheader("✅ Deep Analysis Results")
-       st.dataframe(
+st.subheader("✅ Deep Analysis Results")
+        st.dataframe(
             pd.DataFrame(results)[
                 ["Suburb", "Decision", "Confidence", "Confidence Score", "Failed Gates"]
             ],
