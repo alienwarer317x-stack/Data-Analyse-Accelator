@@ -50,3 +50,24 @@ def fetch_vacancy_rate(state, suburb):
             return value
 
     return None
+
+def build_row_from_sqm(state, suburb):
+    """
+    Builds a _row dict for Explorer using live SQM data.
+    This mirrors the DSR adapter but uses scraping instead.
+    """
+
+    return {
+        "Vacancy rate": fetch_vacancy_rate(state, suburb),
+        "Percent stock on market": fetch_stock_on_market(state, suburb),
+        "Days on market": fetch_days_on_market(state, suburb),
+
+        # Fields not available from SQM yet (populate later)
+        "Gross rental yield": None,
+        "Percent renters in market": None,
+        "Statistical reliability": None,
+
+        # Context
+        "State": state,
+        "Suburb": suburb,
+    }
