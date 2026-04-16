@@ -152,7 +152,6 @@ if current_discovery_df is not None and not current_discovery_df.empty:
         current_selected_suburbs = st.session_state.explorer_selected_suburbs
 
 # ====================== STAGE 2 — DEEP ANALYSIS ======================
-# ====================== STAGE 2 — DEEP ANALYSIS ======================
 if current_selected_suburbs:
     st.markdown("## 🟥 Stage 2 — Deep Analysis (Authoritative Engine)")
 
