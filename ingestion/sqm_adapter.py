@@ -1,3 +1,4 @@
+from ingestion.sqm_growth_adapter import fetch_sqm_growth
 from ingestion.abs_adapter import fetch_renters_pct
 import requests
 from bs4 import BeautifulSoup
@@ -168,22 +169,20 @@ def fetch_rental_yield(state, suburb):
 # Public adapter function
 # -----------------------------
 def build_row_from_sqm(state, suburb):
-    """
-    Builds a _row dict for Explorer using live SQM data.
-    This mirrors the DSR adapter but uses scraping instead.
-    """
+    growth = fetch_sqm_growth(state, suburb)
 
     return {
         "Vacancy rate": fetch_vacancy_rate(state, suburb),
         "Percent stock on market": fetch_stock_on_market(state, suburb),
         "Days on market": fetch_days_on_market(state, suburb),
 
-        # Fields to be populated by later ingestion steps
-        "Gross rental yield": fetch_rental_yield(state, suburb),
         "Percent renters in market": fetch_renters_pct(state, suburb),
-        "Statistical reliability": None,
+        "Gross rental yield": fetch_rental_yield(state, suburb),
 
-        # Context
+        "sqm_36m_growth_pct": growth.get("sqm_36m_growth_pct"),
+        "sqm_10y_growth_pct": growth.get("sqm_10y_growth_pct"),
+
+        "Statistical reliability": None,
         "State": state,
         "Suburb": suburb,
     }
