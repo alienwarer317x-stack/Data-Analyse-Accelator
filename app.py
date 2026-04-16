@@ -64,7 +64,7 @@ def normalise_percent(val):
         return None
     try:
         v = float(str(val).replace("%", "").strip())
-        return v * 100 if v <= 1 else v
+       return v * 100 if v <= 1 else v
     except:
         return None
 
