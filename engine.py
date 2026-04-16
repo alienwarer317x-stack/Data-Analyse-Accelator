@@ -179,7 +179,19 @@ def evaluate_suburb(row):
         "statistical_reliability": reliability,
     }
 
-    decision, failed = evaluate_buy_gates(factors)
+    # -----------------------------------
+# Growth logic integration
+# -----------------------------------
+growth = consolidate_growth_metrics(row)
+growth_failed = evaluate_growth_gates(growth)
+
+decision, failed = evaluate_buy_gates(factors)
+
+# Merge growth failures
+failed = failed + growth_failed
+
+if failed:
+    decision = "AVOID"
     confidence_score, confidence_band = calculate_confidence(decision)
 
     return {
@@ -190,3 +202,58 @@ def evaluate_suburb(row):
         "Market Cycle": classify_market_cycle(demand_supply),
         "Failed Gates": failed if failed else ["None"],
     }
+# -----------------------------------
+# Growth helpers
+# -----------------------------------
+def calculate_cagr(total_growth_pct, years):
+    """
+    Converts total growth % into CAGR.
+    Example: 80% over 10 years -> ~6.0%
+    """
+    if total_growth_pct is None or years <= 0:
+        return None
+    try:
+        return ((1 + total_growth_pct / 100) ** (1 / years) - 1) * 100
+    except Exception:
+        return None
+
+def consolidate_growth_metrics(row):
+    """
+    Consolidates growth metrics from SQM, OTH, HTAG.
+    Returns derived growth indicators.
+    """
+
+    sqm_36m = row.get("sqm_36m_growth_pct")
+    sqm_10y = row.get("sqm_10y_growth_pct")
+    oth_10y = row.get("oth_10y_growth_pct")
+    htag_10y = row.get("htag_10y_growth_pct")
+
+    avg_10y_growth = None
+    ten_year_vals = [v for v in [sqm_10y, oth_10y, htag_10y] if isinstance(v, (int, float))]
+    if ten_year_vals:
+        avg_10y_growth = sum(ten_year_vals) / len(ten_year_vals)
+
+    cagr_10y = calculate_cagr(avg_10y_growth, 10) if avg_10y_growth is not None else None
+
+    return {
+        "sqm_36m_growth_pct": sqm_36m,
+        "avg_10y_growth_pct": avg_10y_growth,
+        "cagr_10y_pct": cagr_10y,
+    }
+
+def evaluate_growth_gates(growth):
+    """
+    Applies growth discipline rules.
+    """
+
+    failed = []
+
+    # 36 month boom control
+    if growth["sqm_36m_growth_pct"] is not None and growth["sqm_36m_growth_pct"] > 50:
+        failed.append("36m Growth Too High")
+
+    # 10 year sustainability check
+    if growth["cagr_10y_pct"] is not None and growth["cagr_10y_pct"] > 7:
+        failed.append("10yr CAGR Too High")
+
+    return failed
