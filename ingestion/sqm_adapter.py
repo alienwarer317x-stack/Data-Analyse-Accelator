@@ -1,3 +1,4 @@
+from ingestion.htag_growth_adapter import fetch_htag_growth
 from ingestion.oth_growth_adapter import fetch_oth_growth
 from ingestion.sqm_growth_adapter import fetch_sqm_growth
 from ingestion.abs_adapter import fetch_renters_pct
@@ -173,6 +174,7 @@ def fetch_rental_yield(state, suburb):
 def build_row_from_sqm(state, suburb):
     sqm_growth = fetch_sqm_growth(state, suburb)
     oth_growth = fetch_oth_growth(state, suburb)
+    htag_growth = fetch_htag_growth(state, suburb)
 
     return {
         "Vacancy rate": fetch_vacancy_rate(state, suburb),
@@ -185,6 +187,7 @@ def build_row_from_sqm(state, suburb):
         "sqm_36m_growth_pct": sqm_growth.get("sqm_36m_growth_pct"),
         "sqm_10y_growth_pct": sqm_growth.get("sqm_10y_growth_pct"),
         "oth_10y_growth_pct": oth_growth.get("oth_10y_growth_pct"),
+        "htag_10y_growth_pct": htag_growth.get("htag_10y_growth_pct"),
 
         "Statistical reliability": None,
         "State": state,
