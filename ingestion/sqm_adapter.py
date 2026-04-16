@@ -67,6 +67,13 @@ def _build_dom_url(state, suburb):
     region = f"{state.upper()}-{suburb.replace(' ', '+')}"
     return f"https://sqmresearch.com.au/graph_days_on_market.php?region={region}"
 
+def _build_rental_yield_url(state, suburb):
+    """
+    Builds the SQM gross rental yield URL for a suburb.
+    """
+    region = f"{state.upper()}-{suburb.replace(' ', '+')}"
+    return f"https://sqmresearch.com.au/graph_rental_yield.php?region={region}"
+
 
 # -----------------------------
 # Fetchers
@@ -134,7 +141,28 @@ def fetch_days_on_market(state, suburb):
             return value
 
     return None
+    
+def fetch_rental_yield(state, suburb):
+    """
+    Fetches the latest SQM gross rental yield (%) for a suburb.
+    Returns a float (e.g. 5.4) or None.
+    """
 
+    url = _build_rental_yield_url(state, suburb)
+    html = _fetch_sqm_page(url)
+    if not html:
+        return None
+
+    soup = BeautifulSoup(html, "html.parser")
+    candidates = soup.find_all(string=lambda t: t and "%" in t)
+
+    for text in candidates:
+        value = to_float(text)
+        # Rental yields are typically between 2% and 12%
+        if value is not None and 2 <= value <= 15:
+            return value
+
+    return None
 
 # -----------------------------
 # Public adapter function
@@ -151,7 +179,7 @@ def build_row_from_sqm(state, suburb):
         "Days on market": fetch_days_on_market(state, suburb),
 
         # Fields to be populated by later ingestion steps
-        "Gross rental yield": None,
+        "Gross rental yield": fetch_rental_yield(state, suburb),
         "Percent renters in market": fetch_renters_pct(state, suburb),
         "Statistical reliability": None,
 
