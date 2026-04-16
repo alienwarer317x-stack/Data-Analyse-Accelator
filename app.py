@@ -183,13 +183,14 @@ if current_selected_suburbs:
             if r["Suburb"] not in current_selected_suburbs:
                 continue
 
+            # ✅ Correctly indented DSR vs Explorer logic
             if client_mode == "DSR Upload":
-    row = r["_row"]
-else:
-    row = build_row_from_sqm(
-        state=r.get("State"),
-        suburb=r.get("Suburb")
-    )
+                row = r["_row"]
+            else:
+                row = build_row_from_sqm(
+                    state=r.get("State"),
+                    suburb=r.get("Suburb")
+                )
 
             factors = {
                 "renters_pct": normalise_percent(row.get("Percent renters in market")),
@@ -213,5 +214,3 @@ else:
 
         st.subheader("✅ Deep Analysis Results")
         st.dataframe(pd.DataFrame(results), use_container_width=True)
-
-st.caption("Property Investment Accelerator — Authoritative Logic Engine")
