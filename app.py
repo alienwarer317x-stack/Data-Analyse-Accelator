@@ -155,6 +155,7 @@ if current_discovery_df is not None and not current_discovery_df.empty:
 # ====================== STAGE 2 — DEEP ANALYSIS ======================
 if current_selected_suburbs:
     st.markdown("## 🟥 Stage 2 — Deep Analysis (Authoritative Engine)")
+
     if st.button("Run Deep Analysis on Selected Suburbs"):
         results = []
 
@@ -170,29 +171,20 @@ if current_selected_suburbs:
                     suburb=r.get("Suburb")
                 )
 
-            factors = {
-                "renters_pct": normalise_percent(row.get("Percent renters in market")),
-                "vacancy_pct": normalise_plain(row.get("Vacancy rate")),
-                "demand_supply_ratio": normalise_plain(row.get("Demand to Supply Ratio")),
-                "stock_on_market_pct": normalise_plain(row.get("Percent stock on market")),
-                "gross_rental_yield": normalise_percent(row.get("Gross rental yield")),
-                "statistical_reliability": normalise_plain(row.get("Statistical reliability")),
-            }
-
             analysis = evaluate_suburb({
-    **row,
-    "State": r.get("State"),
-    "Suburb": r.get("Suburb")
-})
+                **row,
+                "State": r.get("State"),
+                "Suburb": r.get("Suburb")
+            })
 
-results.append({
-    "Suburb": r["Suburb"],
-    "Decision": analysis["Decision"],
-    "Confidence": analysis["Confidence"],
-    "Confidence Score": analysis["Confidence Score"],
-    "Failed Gates": ", ".join(analysis["Failed Gates"]),
-    "Narrative": analysis["Narrative"]
-})
+            results.append({
+                "Suburb": r["Suburb"],
+                "Decision": analysis["Decision"],
+                "Confidence": analysis["Confidence"],
+                "Confidence Score": analysis["Confidence Score"],
+                "Failed Gates": ", ".join(analysis["Failed Gates"]),
+                "Narrative": analysis["Narrative"],
+            })
 
         st.subheader("✅ Deep Analysis Results")
         st.dataframe(
@@ -202,25 +194,24 @@ results.append({
             use_container_width=True
         )
 
-        # ✅ Narrative MUST be inside the button block
         st.subheader("🧠 Investment Rationale")
 
-for res in results:
-    narrative = res["Narrative"]
+        for res in results:
+            narrative = res["Narrative"]
 
-    with st.expander(narrative["headline"]):
+            with st.expander(narrative["headline"]):
 
-        if narrative["strengths"]:
-            st.markdown("### ✅ Strengths")
-            for s in narrative["strengths"]:
-                st.markdown(f"- {s}")
+                if narrative["strengths"]:
+                    st.markdown("### ✅ Strengths")
+                    for s in narrative["strengths"]:
+                        st.markdown(f"- {s}")
 
-        if narrative["risks"]:
-            st.markdown("### ⚠️ Risks")
-            for r in narrative["risks"]:
-                st.markdown(f"- {r}")
+                if narrative["risks"]:
+                    st.markdown("### ⚠️ Risks")
+                    for r in narrative["risks"]:
+                        st.markdown(f"- {r}")
 
-        if narrative["failed_gate_explanations"]:
-            st.markdown("### ❌ Failed Investment Criteria")
-            for g in narrative["failed_gate_explanations"]:
-                st.markdown(f"- {g}")
+                if narrative["failed_gate_explanations"]:
+                    st.markdown("### ❌ Failed Investment Criteria")
+                    for g in narrative["failed_gate_explanations"]:
+                        st.markdown(f"- {g}")
