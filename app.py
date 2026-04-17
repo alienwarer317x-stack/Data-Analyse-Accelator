@@ -209,7 +209,7 @@ if current_selected_suburbs:
         st.dataframe(
             df_buy[
                 ["Suburb", "Decision", "Confidence",
-                 "Confidence Score", "Investability Score", "Failed Gates"]
+                 "Confidence Score", "Investability Score", "Demand / Supply Ratio", "Failed Gates"]
             ],
             use_container_width=True
         )
@@ -218,7 +218,7 @@ if current_selected_suburbs:
         st.dataframe(
             df_avoid[
                 ["Suburb", "Decision", "Confidence",
-                 "Confidence Score", "Investability Score", "Failed Gates"]
+                 "Confidence Score", "Investability Score","Demand / Supply Ratio", "Failed Gates"]
             ],
             use_container_width=True
         )
