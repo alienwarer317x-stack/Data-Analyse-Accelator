@@ -201,11 +201,12 @@ if current_selected_suburbs:
 
 
         # ✅ Narrative MUST be inside the button block
-        st.subheader("🧠 Investment Rationale")
+st.subheader("🧠 Investment Rationale")
 
-        for res in results:
-            with st.expander(f"Why {res['Suburb']} is a {res['Decision']}"):
-                st.markdown(res["Narrative"])
+for res in results:
+    with st.expander(f"Why {res['Suburb']} is a {res['Decision']}"):
+        st.markdown(res["Narrative"])
+
 
 
             with st.expander(f"Why {res['Suburb']} is a {res['Decision']}"):
