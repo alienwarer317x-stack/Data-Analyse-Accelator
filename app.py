@@ -205,7 +205,7 @@ if current_selected_suburbs:
 
         for res in results:
             with st.expander(f"Why {res['Suburb']} is a {res['Decision']}"):
-                st.markdown(narrative)
+                st.markdown(res["Narrative"])
 
 
             with st.expander(f"Why {res['Suburb']} is a {res['Decision']}"):
