@@ -288,6 +288,7 @@ def evaluate_suburb(row):
         "Decision": decision,
         "Confidence": confidence_band,
         "Confidence Score": confidence_score,
+        "Investability Score": investability_score,
         "Failed Gates": failed if failed else ["None"],
         "Structural Status": structural_eval["status"],
         "Narrative": narrative,
