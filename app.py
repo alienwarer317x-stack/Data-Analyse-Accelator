@@ -189,7 +189,7 @@ if current_selected_suburbs:
                 "Failed Gates": ", ".join(failed),
                 "Narrative": f"Based on authoritative metrics, {r['Suburb']} presents a {decision} profile."
             })
-            
+
         st.subheader("✅ Deep Analysis Results")
         st.dataframe(
             pd.DataFrame(results)[
@@ -198,21 +198,9 @@ if current_selected_suburbs:
             use_container_width=True
         )
 
-
-
-  # ✅ Narrative MUST be inside the button block
+        # ✅ Narrative MUST be inside the button block
         st.subheader("🧠 Investment Rationale")
 
         for res in results:
             with st.expander(f"Why {res['Suburb']} is a {res['Decision']}"):
-                st.markdown(f"**{narrative['headline']}**")
-
-                if narrative["strengths"]:
-                    st.markdown("### ✅ Key Strengths")
-                    for s in narrative["strengths"]:
-                        st.markdown(f"- {s}")
-
-                if narrative["risks"]:
-                    st.markdown("### ⚠️ Key Risks / Constraints")
-                    for rsk in narrative["risks"]:
-                        st.markdown(f"- {rsk}")
+                st.markdown(res["Narrative"])
