@@ -213,7 +213,7 @@ st.dataframe(
         ]
     ],
     use_container_width=True
-)
+    )
 
 # ✅ STEP 2B-2: AVOID section
 st.markdown("### ⚠️ AVOID / Watchlist Suburbs")
@@ -230,7 +230,7 @@ st.dataframe(
         ]
     ],
     use_container_width=True
-)
+    )
 
         st.subheader("🧠 Investment Rationale")
 
