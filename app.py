@@ -188,6 +188,12 @@ if current_selected_suburbs:
             })
 
         st.subheader("✅ Deep Analysis Results")
+        df_results = pd.DataFrame(results)
+        df_results = df_results.sort_values(
+            by="Investability Score",
+            ascending=False
+        )
+
         st.dataframe(
             pd.DataFrame(results)[
                 ["Suburb", "Decision", "Confidence", "Confidence Score", "Failed Gates"]
