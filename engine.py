@@ -636,16 +636,15 @@ def evaluate_suburb(row):
         demand_supply=demand_supply
     )
 
-    return {
-        "Decision": decision,
-        "Confidence": confidence_band,
-        "Confidence Score": confidence_score,
-        "Demand / Supply Ratio": demand_supply,
-        "Market Cycle": classify_market_cycle(demand_supply),
-        "Failed Gates": failed if failed else ["None"],
-        "Growth": growth,
-        "Narrative": narrative,
-    }
+return {
+    "Decision": decision,
+    "Confidence": confidence_band,
+    "Confidence Score": confidence_score,
+    "Failed Gates": failed,
+    "Structural Status": structural_eval["status"],
+    "Narrative": narrative,
+}
+
 narrative = build_authoritative_narrative(
     decision=decision,
     demand_supply=demand_supply,
