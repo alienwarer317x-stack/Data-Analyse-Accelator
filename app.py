@@ -183,7 +183,7 @@ if current_selected_suburbs:
                 "Confidence": analysis["Confidence"],
                 "Confidence Score": analysis["Confidence Score"],
                 "Investability Score": analysis["Investability Score"],
-                "Demand / Supply Ratio": analysis["Demand / Supply Ratio"],
+                "Demand/Supply Ratio": analysis["Demand/Supply Ratio"],
                 "Failed Gates": ", ".join(analysis["Failed Gates"]),
                 "Narrative": analysis["Narrative"],
             })
