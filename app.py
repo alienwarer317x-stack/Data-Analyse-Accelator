@@ -204,7 +204,9 @@ if current_selected_suburbs:
         st.subheader("🧠 Investment Rationale")
 
         for res in results:
-            narrative = res["Narrative"]
+            with st.expander(f"Why {res['Suburb']} is a {res['Decision']}"):
+                st.markdown(narrative)
+
 
             with st.expander(f"Why {res['Suburb']} is a {res['Decision']}"):
                 st.markdown(f"**{narrative['headline']}**")
