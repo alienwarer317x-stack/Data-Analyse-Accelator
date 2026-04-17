@@ -187,105 +187,43 @@ if current_selected_suburbs:
                 "Narrative": analysis["Narrative"],
             })
 
+        # ---------- RESULTS TABLES ----------
         st.subheader("✅ Deep Analysis Results")
-        df_results = pd.DataFrame(results)
-        df_results = df_results.sort_values(
-            by="Investability Score",
-            ascending=False
-        )
-        
-# ✅ STEP 2B-1: Split BUY vs AVOID (BUY-first portfolio view)
-df_buy = df_results[df_results["Decision"] == "BUY"]
-df_avoid = df_results[df_results["Decision"] == "AVOID"]
 
-# ✅ STEP 2B-2: BUY section
-st.markdown("### 🏆 Top BUY Opportunities")
-
-st.dataframe(
-    df_buy[
-        [
-            "Suburb",
-            "Decision",
-            "Confidence",
-            "Confidence Score",
-            "Investability Score",
-            "Failed Gates",
-        ]
-    ],
-    use_container_width=True
-    )
-
-# ✅ STEP 2B-2: AVOID section
-st.markdown("### ⚠️ AVOID / Watchlist Suburbs")
-
-st.dataframe(
-    df_avoid[
-        [
-            "Suburb",
-            "Decision",
-            "Confidence",
-            "Confidence Score",
-            "Investability Score",
-            "Failed Gates",
-        ]
-    ],
-    use_container_width=True
-    )
-
-st.subheader("✅ Deep Analysis Results")
-
-        # Build and sort results dataframe
         df_results = pd.DataFrame(results)
         df_results = df_results.sort_values(
             by="Investability Score",
             ascending=False
         )
 
-        # ✅ STEP 2B-1: Split BUY vs AVOID (BUY-first portfolio view)
         df_buy = df_results[df_results["Decision"] == "BUY"]
         df_avoid = df_results[df_results["Decision"] == "AVOID"]
 
-        # ✅ STEP 2B-2: BUY section
         st.markdown("### 🏆 Top BUY Opportunities")
-
         st.dataframe(
             df_buy[
-                [
-                    "Suburb",
-                    "Decision",
-                    "Confidence",
-                    "Confidence Score",
-                    "Investability Score",
-                    "Failed Gates",
-                ]
+                ["Suburb", "Decision", "Confidence",
+                 "Confidence Score", "Investability Score", "Failed Gates"]
             ],
             use_container_width=True
         )
 
-        # ✅ STEP 2B-2: AVOID section
         st.markdown("### ⚠️ AVOID / Watchlist Suburbs")
-
         st.dataframe(
             df_avoid[
-                [
-                    "Suburb",
-                    "Decision",
-                    "Confidence",
-                    "Confidence Score",
-                    "Investability Score",
-                    "Failed Gates",
-                ]
+                ["Suburb", "Decision", "Confidence",
+                 "Confidence Score", "Investability Score", "Failed Gates"]
             ],
             use_container_width=True
         )
 
+        # ---------- NARRATIVE ----------
         st.subheader("🧠 Investment Rationale")
 
         for res in results:
             narrative = res["Narrative"]
 
             with st.expander(narrative["headline"]):
-
                 if narrative["strengths"]:
                     st.markdown("### ✅ Strengths")
                     for s in narrative["strengths"]:
