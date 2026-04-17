@@ -40,8 +40,8 @@ def calculate_demand_supply_ratio(vacancy, stock, dom):
         return None
 
     vacancy_component = clamp(1 - vacancy / 5.0)
-    stock_component   = clamp(1 - stock / 2.5)
-    dom_component     = clamp(1 - dom / 60.0)
+    stock_component = clamp(1 - stock / 2.5)
+    dom_component = clamp(1 - dom / 60.0)
 
     if None in (vacancy_component, stock_component, dom_component):
         return None
@@ -90,73 +90,56 @@ BUY_GATE_EXPLANATIONS = {
     "36m Growth Too High": "Recent growth appears unsustainably strong, elevating pullback risk.",
     "10yr CAGR Too High": "Long‑term growth rate exceeds sustainability benchmarks.",
 }
+
+
+# ---------------- PATH TO BUY ----------------
+
 BUY_GATE_REQUIREMENTS = {
-    "Renters %": {
-        "type": "range",
-        "min": 15,
-        "max": 35,
-        "label": "Renter proportion (%)"
-    },
-    "Vacancy": {
-        "type": "max",
-        "value": 2.0,
-        "label": "Vacancy rate (%)"
-    },
-    "Demand / Supply": {
-        "type": "min",
-        "value": 55,
-        "label": "Demand–Supply Ratio"
-    },
-    "Stock on Market": {
-        "type": "max",
-        "value": 1.3,
-        "label": "Stock on market (%)"
-    },
-    "Gross Yield": {
-        "type": "min",
-        "value": 4.0,
-        "label": "Gross rental yield (%)"
-    },
-    "Reliability": {
-        "type": "min",
-        "value": 51,
-        "label": "Statistical reliability"
-    },
+    "Renters %": {"type": "range", "min": 15, "max": 35, "label": "Renter proportion (%)"},
+    "Vacancy": {"type": "max", "value": 2.0, "label": "Vacancy rate (%)"},
+    "Demand / Supply": {"type": "min", "value": 55, "label": "Demand–Supply Ratio"},
+    "Stock on Market": {"type": "max", "value": 1.3, "label": "Stock on market (%)"},
+    "Gross Yield": {"type": "min", "value": 4.0, "label": "Gross rental yield (%)"},
+    "Reliability": {"type": "min", "value": 51, "label": "Statistical reliability"},
 }
+
+
 def build_path_to_buy(factors, failed_gates):
     actions = []
+
+    current_map = {
+        "Renters %": factors.get("renters_pct"),
+        "Vacancy": factors.get("vacancy_pct"),
+        "Demand / Supply": factors.get("demand_supply_ratio"),
+        "Stock on Market": factors.get("stock_on_market_pct"),
+        "Gross Yield": factors.get("gross_rental_yield"),
+        "Reliability": factors.get("statistical_reliability"),
+    }
 
     for gate in failed_gates:
         rule = BUY_GATE_REQUIREMENTS.get(gate)
         if not rule:
             continue
 
-        current_value = factors.get(
-            gate.lower()
-            .replace(" ", "_")
-            .replace("%", "")
-        )
+        current = current_map.get(gate)
 
         if rule["type"] == "range":
             actions.append(
-                f"{rule['label']} must move into the "
-                f"{rule['min']}–{rule['max']} range "
-                f"(currently {current_value})."
+                f"{rule['label']} must move into the {rule['min']}–{rule['max']} range "
+                f"(currently {current})."
             )
-
         elif rule["type"] == "min":
             actions.append(
-                f"{rule['label']} must rise above {rule['value']} "
-                f"(currently {current_value})."
+                f"{rule['label']} must rise above {rule['value']} (currently {current})."
             )
-
         elif rule["type"] == "max":
             actions.append(
-                f"{rule['label']} must fall below {rule['value']} "
-                f"(currently {current_value})."
+                f"{rule['label']} must fall below {rule['value']} (currently {current})."
             )
 
     return actions
+
+
 # ---------------- GROWTH ----------------
 
 def calculate_cagr(total_growth_pct, years):
@@ -202,8 +185,7 @@ def calculate_confidence(decision):
 
 # ---------------- AUTHORITATIVE NARRATIVE ----------------
 
-"path_to_buy": build_path_to_buy(factors, failed_gates)
-def build_authoritative_narrative(decision, dsr, growth, failed_gates, structural_eval):
+def build_authoritative_narrative(decision, dsr, growth, failed_gates, structural_eval, factors):
     strengths = []
     risks = []
     gate_explanations = []
@@ -223,8 +205,9 @@ def build_authoritative_narrative(decision, dsr, growth, failed_gates, structura
             risks.append("Long‑term growth exceeds sustainability benchmarks.")
 
     for g in failed_gates:
-        if g in BUY_GATE_EXPLANATIONS:
-            gate_explanations.append(BUY_GATE_EXPLANATIONS[g])
+        explanation = BUY_GATE_EXPLANATIONS.get(g)
+        if explanation:
+            gate_explanations.append(explanation)
 
     if structural_eval["status"] == "FAIL":
         risks.append("Structural fundamentals fail long‑term investment criteria.")
@@ -242,18 +225,19 @@ def build_authoritative_narrative(decision, dsr, growth, failed_gates, structura
         "strengths": strengths,
         "risks": risks,
         "failed_gate_explanations": gate_explanations,
+        "path_to_buy": build_path_to_buy(factors, failed_gates),
     }
 
 
 # ---------------- AUTHORITATIVE EVALUATION ----------------
 
 def evaluate_suburb(row):
-    vacancy       = normalise_plain(row.get("Vacancy rate"))
-    stock         = normalise_plain(row.get("Percent stock on market"))
-    dom           = normalise_plain(row.get("Days on market"))
-    yield_pct     = normalise_percent(row.get("Gross rental yield"))
-    renters_pct   = normalise_percent(row.get("Percent renters in market"))
-    reliability   = normalise_plain(row.get("Statistical reliability"))
+    vacancy = normalise_plain(row.get("Vacancy rate"))
+    stock = normalise_plain(row.get("Percent stock on market"))
+    dom = normalise_plain(row.get("Days on market"))
+    yield_pct = normalise_percent(row.get("Gross rental yield"))
+    renters_pct = normalise_percent(row.get("Percent renters in market"))
+    reliability = normalise_plain(row.get("Statistical reliability"))
 
     demand_supply = calculate_demand_supply_ratio(vacancy, stock, dom)
 
@@ -271,15 +255,10 @@ def evaluate_suburb(row):
     growth = consolidate_growth_metrics(row)
     failed += evaluate_growth_gates(growth)
 
-    # -------- STRUCTURAL FUNDAMENTALS --------
     structural_eval = evaluate_structural_gates(
-        get_structural_fundamentals(
-            row.get("Suburb"),
-            
-        )
+        get_structural_fundamentals(row.get("Suburb"))
     )
 
-    # 🔒 HARD OVERRIDE
     if structural_eval["status"] == "FAIL":
         decision = "AVOID"
 
@@ -290,7 +269,8 @@ def evaluate_suburb(row):
         dsr=demand_supply,
         growth=growth,
         failed_gates=failed,
-        structural_eval=structural_eval
+        structural_eval=structural_eval,
+        factors=factors,
     )
 
     return {
