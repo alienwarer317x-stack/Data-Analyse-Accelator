@@ -90,8 +90,73 @@ BUY_GATE_EXPLANATIONS = {
     "36m Growth Too High": "Recent growth appears unsustainably strong, elevating pullback risk.",
     "10yr CAGR Too High": "Long‑term growth rate exceeds sustainability benchmarks.",
 }
+BUY_GATE_REQUIREMENTS = {
+    "Renters %": {
+        "type": "range",
+        "min": 15,
+        "max": 35,
+        "label": "Renter proportion (%)"
+    },
+    "Vacancy": {
+        "type": "max",
+        "value": 2.0,
+        "label": "Vacancy rate (%)"
+    },
+    "Demand / Supply": {
+        "type": "min",
+        "value": 55,
+        "label": "Demand–Supply Ratio"
+    },
+    "Stock on Market": {
+        "type": "max",
+        "value": 1.3,
+        "label": "Stock on market (%)"
+    },
+    "Gross Yield": {
+        "type": "min",
+        "value": 4.0,
+        "label": "Gross rental yield (%)"
+    },
+    "Reliability": {
+        "type": "min",
+        "value": 51,
+        "label": "Statistical reliability"
+    },
+}
+def build_path_to_buy(factors, failed_gates):
+    actions = []
 
+    for gate in failed_gates:
+        rule = BUY_GATE_REQUIREMENTS.get(gate)
+        if not rule:
+            continue
 
+        current_value = factors.get(
+            gate.lower()
+            .replace(" ", "_")
+            .replace("%", "")
+        )
+
+        if rule["type"] == "range":
+            actions.append(
+                f"{rule['label']} must move into the "
+                f"{rule['min']}–{rule['max']} range "
+                f"(currently {current_value})."
+            )
+
+        elif rule["type"] == "min":
+            actions.append(
+                f"{rule['label']} must rise above {rule['value']} "
+                f"(currently {current_value})."
+            )
+
+        elif rule["type"] == "max":
+            actions.append(
+                f"{rule['label']} must fall below {rule['value']} "
+                f"(currently {current_value})."
+            )
+
+    return actions
 # ---------------- GROWTH ----------------
 
 def calculate_cagr(total_growth_pct, years):
@@ -137,6 +202,7 @@ def calculate_confidence(decision):
 
 # ---------------- AUTHORITATIVE NARRATIVE ----------------
 
+"path_to_buy": build_path_to_buy(factors, failed_gates)
 def build_authoritative_narrative(decision, dsr, growth, failed_gates, structural_eval):
     strengths = []
     risks = []
