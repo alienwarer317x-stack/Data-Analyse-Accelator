@@ -193,13 +193,44 @@ if current_selected_suburbs:
             by="Investability Score",
             ascending=False
         )
+        
+# ✅ STEP 2B-1: Split BUY vs AVOID (BUY-first portfolio view)
+df_buy = df_results[df_results["Decision"] == "BUY"]
+df_avoid = df_results[df_results["Decision"] == "AVOID"
 
-        st.dataframe(
-            pd.DataFrame(results)[
-                ["Suburb", "Decision", "Confidence", "Confidence Score", "Investability Score", "Failed Gates"]
-            ],
-            use_container_width=True
-        )
+# ✅ STEP 2B-2: BUY section
+st.markdown("### 🏆 Top BUY Opportunities")
+
+st.dataframe(
+    df_buy[
+        [
+            "Suburb",
+            "Decision",
+            "Confidence",
+            "Confidence Score",
+            "Investability Score",
+            "Failed Gates",
+        ]
+    ],
+    use_container_width=True
+)
+
+# ✅ STEP 2B-2: AVOID section
+st.markdown("### ⚠️ AVOID / Watchlist Suburbs")
+
+st.dataframe(
+    df_avoid[
+        [
+            "Suburb",
+            "Decision",
+            "Confidence",
+            "Confidence Score",
+            "Investability Score",
+            "Failed Gates",
+        ]
+    ],
+    use_container_width=True
+)
 
         st.subheader("🧠 Investment Rationale")
 
