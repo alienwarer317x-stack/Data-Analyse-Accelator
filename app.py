@@ -215,3 +215,8 @@ if current_selected_suburbs:
                     st.markdown("### ❌ Failed Investment Criteria")
                     for g in narrative["failed_gate_explanations"]:
                         st.markdown(f"- {g}")
+                        
+                if narrative.get("path_to_buy"):
+                    st.markdown("### 🔁 What would need to change to become a BUY")
+                    for action in narrative["path_to_buy"]:
+                        st.markdown(f"- {action}")
