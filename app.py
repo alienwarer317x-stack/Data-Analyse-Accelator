@@ -183,6 +183,7 @@ if current_selected_suburbs:
                 "Confidence": analysis["Confidence"],
                 "Confidence Score": analysis["Confidence Score"],
                 "Investability Score": analysis["Investability Score"],
+                "Demand / Supply Ratio": analysis["Demand / Supply Ratio"],
                 "Failed Gates": ", ".join(analysis["Failed Gates"]),
                 "Narrative": analysis["Narrative"],
             })
@@ -192,8 +193,8 @@ if current_selected_suburbs:
 
         df_results = pd.DataFrame(results)
         df_results = df_results.sort_values(
-            by="Investability Score",
-            ascending=False
+            by=["Investability Score", "Demand / Supply Ratio"],
+            ascending=[False, False]
         )
 
         df_buy = df_results[df_results["Decision"] == "BUY"]
