@@ -196,7 +196,7 @@ if current_selected_suburbs:
 
         st.dataframe(
             pd.DataFrame(results)[
-                ["Suburb", "Decision", "Confidence", "Confidence Score", "Failed Gates"]
+                ["Suburb", "Decision", "Confidence", "Confidence Score", "Investability Score", "Failed Gates"]
             ],
             use_container_width=True
         )
