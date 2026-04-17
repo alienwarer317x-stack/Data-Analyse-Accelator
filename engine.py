@@ -4,6 +4,16 @@ from ingestion.fundamentals_adapter import evaluate_structural_gates
 # PROPERTY INVESTMENT ACCELERATOR — LOGIC ENGINE
 # Growth + Demand/Supply + Discipline (AUTHORITATIVE)
 # ============================================================
+BUY_GATE_EXPLANATIONS = {
+    "Renters %": "The renter proportion sits outside the preferred 15–35% range, reducing rental market stability.",
+    "Vacancy": "Vacancy rates exceed the 2% threshold, indicating weaker rental demand.",
+    "Demand / Supply": "Demand is not sufficiently stronger than supply to support price acceleration.",
+    "Stock on Market": "Elevated stock levels suggest excess supply and slower absorption.",
+    "Gross Yield": "Rental yields are below the minimum required to support cash‑flow resilience.",
+    "Reliability": "Statistical reliability is insufficient, increasing decision risk.",
+    "36m Growth Too High": "Recent growth appears unsustainably high, increasing pullback risk.",
+    "10yr CAGR Too High": "Long‑term growth exceeds sustainable benchmarks."
+}
 
 # ---------------- NORMALISATION ----------------
 
