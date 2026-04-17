@@ -92,7 +92,7 @@ BUY_GATE_EXPLANATIONS = {
 }
 
 
-# ---------------- PATH TO BUY ----------------
+# ---------------- PATH TO BUY (STEP 1) ----------------
 
 BUY_GATE_REQUIREMENTS = {
     "Renters %": {"type": "range", "min": 15, "max": 35, "label": "Renter proportion (%)"},
@@ -181,14 +181,10 @@ def evaluate_growth_gates(growth):
 def calculate_confidence(decision):
     score = 85 if decision == "BUY" else 60
     return score, ("High" if score >= 75 else "Medium")
-    
-def calculate_investability_score(confidence_score, structural_status):
-    penalty = {
-        "PASS": 0,
-        "WARN": 10,
-        "FAIL": 30,
-    }.get(structural_status, 0)
 
+
+def calculate_investability_score(confidence_score, structural_status):
+    penalty = {"PASS": 0, "WARN": 10, "FAIL": 30}.get(structural_status, 0)
     return max(0, confidence_score - penalty)
 
 
@@ -273,8 +269,10 @@ def evaluate_suburb(row):
 
     confidence_score, confidence_band = calculate_confidence(decision)
     investability_score = calculate_investability_score(
-    confidence_score,
-    structural_eval["status"
+        confidence_score,
+        structural_eval["status"]
+    )
+
     narrative = build_authoritative_narrative(
         decision=decision,
         dsr=demand_supply,
