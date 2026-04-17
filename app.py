@@ -1,3 +1,4 @@
+from engine import evaluate_suburb
 from ingestion.sqm_adapter import build_row_from_sqm
 from ingestion.dsr_adapter import build_row_from_dsr
 import streamlit as st
@@ -178,17 +179,20 @@ if current_selected_suburbs:
                 "statistical_reliability": normalise_plain(row.get("Statistical reliability")),
             }
 
-            decision, failed = evaluate_buy_gates(factors)
-            score, band = calculate_confidence(decision)
+            analysis = evaluate_suburb({
+    **row,
+    "State": r.get("State"),
+    "Suburb": r.get("Suburb")
+})
 
-            results.append({
-                "Suburb": r["Suburb"],
-                "Decision": decision,
-                "Confidence": band,
-                "Confidence Score": score,
-                "Failed Gates": ", ".join(failed),
-                "Narrative": f"Based on authoritative metrics, {r['Suburb']} presents a {decision} profile."
-            })
+results.append({
+    "Suburb": r["Suburb"],
+    "Decision": analysis["Decision"],
+    "Confidence": analysis["Confidence"],
+    "Confidence Score": analysis["Confidence Score"],
+    "Failed Gates": ", ".join(analysis["Failed Gates"]),
+    "Narrative": analysis["Narrative"]
+})
 
         st.subheader("✅ Deep Analysis Results")
         st.dataframe(
@@ -201,6 +205,22 @@ if current_selected_suburbs:
         # ✅ Narrative MUST be inside the button block
         st.subheader("🧠 Investment Rationale")
 
-        for res in results:
-            with st.expander(f"Why {res['Suburb']} is a {res['Decision']}"):
-                st.markdown(res["Narrative"])
+for res in results:
+    narrative = res["Narrative"]
+
+    with st.expander(narrative["headline"]):
+
+        if narrative["strengths"]:
+            st.markdown("### ✅ Strengths")
+            for s in narrative["strengths"]:
+                st.markdown(f"- {s}")
+
+        if narrative["risks"]:
+            st.markdown("### ⚠️ Risks")
+            for r in narrative["risks"]:
+                st.markdown(f"- {r}")
+
+        if narrative["failed_gate_explanations"]:
+            st.markdown("### ❌ Failed Investment Criteria")
+            for g in narrative["failed_gate_explanations"]:
+                st.markdown(f"- {g}")
