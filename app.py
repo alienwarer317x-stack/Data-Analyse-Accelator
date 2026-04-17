@@ -196,7 +196,7 @@ if current_selected_suburbs:
         
 # ✅ STEP 2B-1: Split BUY vs AVOID (BUY-first portfolio view)
 df_buy = df_results[df_results["Decision"] == "BUY"]
-df_avoid = df_results[df_results["Decision"] == "AVOID"
+df_avoid = df_results[df_results["Decision"] == "AVOID"]
 
 # ✅ STEP 2B-2: BUY section
 st.markdown("### 🏆 Top BUY Opportunities")
