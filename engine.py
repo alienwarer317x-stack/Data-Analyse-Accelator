@@ -272,7 +272,9 @@ def evaluate_suburb(row):
         decision = "AVOID"
 
     confidence_score, confidence_band = calculate_confidence(decision)
-
+    investability_score = calculate_investability_score(
+    confidence_score,
+    structural_eval["status"
     narrative = build_authoritative_narrative(
         decision=decision,
         dsr=demand_supply,
