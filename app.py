@@ -199,6 +199,11 @@ if current_selected_suburbs:
         df_buy = df_results[df_results["Decision"] == "BUY"]
         df_avoid = df_results[df_results["Decision"] == "AVOID"]
 
+        
+        TOP_N = 5
+        df_top_buy = df_buy.head(TOP_N)
+
+
         st.markdown("### 🏆 Top BUY Opportunities")
         st.dataframe(
             df_buy[
