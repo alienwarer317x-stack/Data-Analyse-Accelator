@@ -232,7 +232,7 @@ st.dataframe(
     use_container_width=True
     )
 
-        st.subheader("🧠 Investment Rationale")
+st.subheader("🧠 Investment Rationale")
 
         for res in results:
             narrative = res["Narrative"]
