@@ -4,16 +4,7 @@ from ingestion.fundamentals_adapter import evaluate_structural_gates
 # PROPERTY INVESTMENT ACCELERATOR — LOGIC ENGINE
 # Growth + Demand/Supply + Discipline (AUTHORITATIVE)
 # ============================================================
-BUY_GATE_EXPLANATIONS = {
-    "Renters %": "The renter proportion sits outside the preferred 15–35% range, reducing rental market stability.",
-    "Vacancy": "Vacancy rates exceed the 2% threshold, indicating weaker rental demand.",
-    "Demand / Supply": "Demand is not sufficiently stronger than supply to support price acceleration.",
-    "Stock on Market": "Elevated stock levels suggest excess supply and slower absorption.",
-    "Gross Yield": "Rental yields are below the minimum required to support cash‑flow resilience.",
-    "Reliability": "Statistical reliability is insufficient, increasing decision risk.",
-    "36m Growth Too High": "Recent growth appears unsustainably high, increasing pullback risk.",
-    "10yr CAGR Too High": "Long‑term growth exceeds sustainable benchmarks."
-}
+
 
 # ---------------- NORMALISATION ----------------
 
@@ -96,7 +87,16 @@ def evaluate_buy_gates(factors):
 
     return ("BUY" if not failed else "AVOID"), failed
 
-
+BUY_GATE_EXPLANATIONS = {
+    "Renters %": "The renter proportion sits outside the preferred 15–35% range, reducing rental market stability.",
+    "Vacancy": "Vacancy rates exceed the 2% threshold, indicating weaker rental demand.",
+    "Demand / Supply": "Demand is not sufficiently stronger than supply to support price acceleration.",
+    "Stock on Market": "Elevated stock levels suggest excess supply and slower absorption.",
+    "Gross Yield": "Rental yields are below the minimum required to support cash‑flow resilience.",
+    "Reliability": "Statistical reliability is insufficient, increasing decision risk.",
+    "36m Growth Too High": "Recent growth appears unsustainably high, increasing pullback risk.",
+    "10yr CAGR Too High": "Long‑term growth exceeds sustainable benchmarks."
+}
 # ---------------- GROWTH HELPERS ----------------
 
 def calculate_cagr(total_growth_pct, years):
@@ -160,83 +160,57 @@ def classify_market_cycle(dsr):
 
 
 # ---------------- AUTHORITATIVE ENTRY ----------------
-def build_narrative(row, decision, growth, demand_supply):
-    """
-    Builds a structured explanation of WHY a suburb is BUY or AVOID.
-    """
-
+def build_authoritative_narrative(
+    decision,
+    demand_supply,
+    growth,
+    failed_gates,
+    structural_eval
+):
     strengths = []
     risks = []
+    failed_gate_explanations = []
 
-    vacancy = row.get("Vacancy rate")
-    stock = row.get("Percent stock on market")
-    renters = row.get("Percent renters in market")
-    yield_pct = row.get("Gross rental yield")
-
-    sqm_36m = growth.get("sqm_36m_growth_pct")
-    cagr_10y = growth.get("cagr_10y_pct")
-
-    # ---- Demand / Supply ----
+    # --- Demand / Supply context ---
     if demand_supply is not None:
         if demand_supply >= 70:
             strengths.append("Demand is significantly stronger than supply, indicating a tight market.")
         elif demand_supply >= 60:
-            strengths.append("Demand is stronger than supply, supporting price and rental growth.")
+            strengths.append("Demand exceeds supply, supporting price and rental growth.")
         else:
-            risks.append("Demand–supply balance is relatively weak and may limit near‑term growth.")
+            risks.append("Demand–supply balance is weak and limits near‑term growth.")
 
-    # ---- Vacancy ----
-    if vacancy is not None:
-        if vacancy < 1:
-            strengths.append("Vacancy rates are extremely low, indicating strong rental pressure.")
-        elif vacancy < 2:
-            strengths.append("Vacancy rates are low, supporting rental stability.")
+    # --- Growth discipline ---
+    if growth.get("cagr_10y_pct") is not None:
+        if growth["cagr_10y_pct"] <= 7:
+            strengths.append("Long‑term growth trends remain within sustainable bounds.")
         else:
-            risks.append("Higher vacancy rates suggest softer rental demand.")
+            risks.append("Growth rates exceed long‑term sustainability benchmarks.")
 
-    # ---- Stock on Market ----
-    if stock is not None:
-        if stock < 1:
-            strengths.append("Very low stock on market suggests limited available supply.")
-        elif stock > 1.3:
-            risks.append("Elevated stock levels may place downward pressure on pricing.")
+    # --- BUY gate explanations ---
+    for gate in failed_gates:
+        explanation = BUY_GATE_EXPLANATIONS.get(gate)
+        if explanation:
+            failed_gate_explanations.append(explanation)
 
-    # ---- Rental Yield ----
-    if yield_pct is not None:
-        if yield_pct >= 5:
-            strengths.append("Gross rental yield is healthy, supporting cash‑flow resilience.")
-        elif yield_pct < 4:
-            risks.append("Rental yield is low, increasing reliance on capital growth.")
-
-    # ---- Renters ----
-    if renters is not None:
-        if 20 <= renters <= 35:
-            strengths.append("A stable renter population supports ongoing rental demand.")
-        else:
-            risks.append("Renter proportion falls outside the preferred stability range.")
-
-    # ---- Growth Discipline ----
-    if sqm_36m is not None and sqm_36m > 50:
-        risks.append("Recent growth has been strong, increasing the risk of a short‑term pullback.")
-
-    if cagr_10y is not None:
-        if cagr_10y > 7:
-            risks.append("Long‑term growth rate exceeds sustainable levels.")
-        else:
-            strengths.append("Long‑term growth has been steady and sustainable.")
+    # --- Structural overlay ---
+    if structural_eval["status"] == "FAIL":
+        risks.append("Structural fundamentals fail long‑term investment thresholds.")
+    elif structural_eval["status"] == "WARN":
+        risks.append("Structural fundamentals raise caution risks requiring monitoring.")
 
     headline = (
         "Why this suburb is considered a BUY"
         if decision == "BUY"
-        else "Why this suburb is currently assessed as an AVOID"
+        else "Why this suburb is assessed as an AVOID"
     )
 
     return {
         "headline": headline,
         "strengths": strengths,
-        "risks": risks
+        "risks": risks,
+        "failed_gate_explanations": failed_gate_explanations,
     }
-    
 def evaluate_suburb(row):
     vacancy = normalise_plain(row.get("Vacancy rate"))
     stock = normalise_plain(row.get("Percent stock on market"))
@@ -672,3 +646,10 @@ def evaluate_suburb(row):
         "Growth": growth,
         "Narrative": narrative,
     }
+narrative = build_authoritative_narrative(
+    decision=decision,
+    demand_supply=demand_supply,
+    growth=growth,
+    failed_gates=failed,
+    structural_eval=structural_eval
+)
