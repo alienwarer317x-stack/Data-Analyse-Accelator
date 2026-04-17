@@ -181,6 +181,15 @@ def evaluate_growth_gates(growth):
 def calculate_confidence(decision):
     score = 85 if decision == "BUY" else 60
     return score, ("High" if score >= 75 else "Medium")
+    
+def calculate_investability_score(confidence_score, structural_status):
+    penalty = {
+        "PASS": 0,
+        "WARN": 10,
+        "FAIL": 30,
+    }.get(structural_status, 0)
+
+    return max(0, confidence_score - penalty)
 
 
 # ---------------- AUTHORITATIVE NARRATIVE ----------------
