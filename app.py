@@ -232,7 +232,54 @@ st.dataframe(
     use_container_width=True
     )
 
-st.subheader("🧠 Investment Rationale")
+st.subheader("✅ Deep Analysis Results")
+
+        # Build and sort results dataframe
+        df_results = pd.DataFrame(results)
+        df_results = df_results.sort_values(
+            by="Investability Score",
+            ascending=False
+        )
+
+        # ✅ STEP 2B-1: Split BUY vs AVOID (BUY-first portfolio view)
+        df_buy = df_results[df_results["Decision"] == "BUY"]
+        df_avoid = df_results[df_results["Decision"] == "AVOID"]
+
+        # ✅ STEP 2B-2: BUY section
+        st.markdown("### 🏆 Top BUY Opportunities")
+
+        st.dataframe(
+            df_buy[
+                [
+                    "Suburb",
+                    "Decision",
+                    "Confidence",
+                    "Confidence Score",
+                    "Investability Score",
+                    "Failed Gates",
+                ]
+            ],
+            use_container_width=True
+        )
+
+        # ✅ STEP 2B-2: AVOID section
+        st.markdown("### ⚠️ AVOID / Watchlist Suburbs")
+
+        st.dataframe(
+            df_avoid[
+                [
+                    "Suburb",
+                    "Decision",
+                    "Confidence",
+                    "Confidence Score",
+                    "Investability Score",
+                    "Failed Gates",
+                ]
+            ],
+            use_container_width=True
+        )
+
+        st.subheader("🧠 Investment Rationale")
 
         for res in results:
             narrative = res["Narrative"]
@@ -253,7 +300,7 @@ st.subheader("🧠 Investment Rationale")
                     st.markdown("### ❌ Failed Investment Criteria")
                     for g in narrative["failed_gate_explanations"]:
                         st.markdown(f"- {g}")
-                        
+
                 if narrative.get("path_to_buy"):
                     st.markdown("### 🔁 What would need to change to become a BUY")
                     for action in narrative["path_to_buy"]:
