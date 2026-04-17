@@ -208,8 +208,8 @@ def evaluate_suburb(row):
     # -------- STRUCTURAL FUNDAMENTALS --------
     structural_eval = evaluate_structural_gates(
         get_structural_fundamentals(
-            suburb=row.get("Suburb"),
-            state=row.get("State")
+            row.get("Suburb"),
+            
         )
     )
 
