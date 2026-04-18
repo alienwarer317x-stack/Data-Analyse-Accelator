@@ -126,7 +126,27 @@ df_scores = pd.DataFrame(scores)
 df_discovery = pd.concat([df_discovery.reset_index(drop=True), df_scores], axis=1)
 # show in Streamlit table with decision column highlighted
 st.dataframe(df_discovery)
-
+# inside app.py Explorer branch
+if client_mode == "Explorer":
+    st.markdown("## Explorer Mode")
+    url_input = st.text_input("Enter listing or data URL to fetch metrics")
+    suburb_input = st.text_input("Suburb name (optional)")
+    if st.button("Fetch and Score"):
+        with st.spinner("Fetching data and scoring..."):
+            sqm_source = {"url": url_input, "suburb": suburb_input}
+            row = build_row_from_sqm(sqm_source)
+            if row.get("scrape_error"):
+                st.error(f"Scrape error: {row['scrape_error']}")
+            else:
+                # canonicalise if you have the function in validation
+                from ingestion.validation import _canonicalise_df
+                import pandas as pd
+                df_tmp, mapping = _canonicalise_df(pd.DataFrame([row]))
+                from ingestion.scoring import score_row
+                s, label = score_row(df_tmp.iloc[0].to_dict())
+                st.metric("Score", f"{s:.1f}", delta=None)
+                st.success(f"Decision: {label}")
+                st.dataframe(df_tmp)
 
 # ====================== STAGE 1 RESULTS ======================
 current_discovery_df = None
