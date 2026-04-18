@@ -1,3 +1,4 @@
+from ingestion.scoring import score_row
 from engine import evaluate_suburb
 from ingestion.sqm_adapter import build_row_from_sqm
 from ingestion.dsr_adapter import build_row_from_dsr
@@ -115,6 +116,17 @@ if client_mode == "Explorer" and st.button("Apply Discovery Filters"):
     df = pd.DataFrame(demo_data)
     df = df[(df["Median Price"] <= max_price) & (df["Days on Market"] <= max_dom)]
     st.session_state.explorer_discovery_df = df
+
+# assume df_discovery is the canonicalised DataFrame used for discovery
+scores = []
+for _, r in df_discovery.iterrows():
+    s, label = score_row(r.to_dict())
+    scores.append({"score": s, "decision": label})
+df_scores = pd.DataFrame(scores)
+df_discovery = pd.concat([df_discovery.reset_index(drop=True), df_scores], axis=1)
+# show in Streamlit table with decision column highlighted
+st.dataframe(df_discovery)
+
 
 # ====================== STAGE 1 RESULTS ======================
 current_discovery_df = None
