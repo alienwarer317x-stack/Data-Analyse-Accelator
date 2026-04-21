@@ -117,15 +117,6 @@ if client_mode == "Explorer" and st.button("Apply Discovery Filters"):
     df = df[(df["Median Price"] <= max_price) & (df["Days on Market"] <= max_dom)]
     st.session_state.explorer_discovery_df = df
 
-# assume df_discovery is the canonicalised DataFrame used for discovery
-scores = []
-for _, r in df_discovery.iterrows():
-    s, label = score_row(r.to_dict())
-    scores.append({"score": s, "decision": label})
-df_scores = pd.DataFrame(scores)
-df_discovery = pd.concat([df_discovery.reset_index(drop=True), df_scores], axis=1)
-# show in Streamlit table with decision column highlighted
-st.dataframe(df_discovery)
 # inside app.py Explorer branch
 if client_mode == "Explorer":
     st.markdown("## Explorer Mode")
@@ -163,10 +154,25 @@ if current_discovery_df is not None and not current_discovery_df.empty:
     st.markdown("## 📍 Discovery Results")
 
     df_display = current_discovery_df.copy()
-    df_display["Median Price"] = df_display["Median Price"].apply(lambda x: f"${x:,.0f}" if pd.notna(x) else "")
+
+    # ---------------- DISCOVERY SCORING (safe placement) ----------------
+    scores = []
+    for _, rr in df_display.iterrows():
+        s, label = score_row(rr.to_dict())
+        scores.append({"Score": s, "Discovery Decision": label})
+
+    df_scores = pd.DataFrame(scores)
+    df_display = pd.concat([df_display.reset_index(drop=True), df_scores], axis=1)
+    # -------------------------------------------------------------------
+
+    df_display["Median Price"] = df_display["Median Price"].apply(
+        lambda x: f"${x:,.0f}" if pd.notna(x) else ""
+    )
 
     st.dataframe(
-        df_display[["State", "Suburb", "Median Price", "Days on Market", "Yield %"]],
+        df_display[
+            ["State", "Suburb", "Median Price", "Days on Market", "Yield %", "Score", "Discovery Decision"]
+        ],
         use_container_width=True
     )
 
