@@ -234,9 +234,45 @@ if current_selected_suburbs:
             by=["Investability Score", "Demand / Supply Ratio"],
             ascending=[False, False]
         )
+# ---------- RISK APPETITE FILTERS (POST‑ANALYSIS ONLY) ----------
+st.markdown("### ⚖️ Risk Appetite Filters (Post‑Analysis View)")
+st.caption(
+    "These filters do NOT change BUY / AVOID decisions. "
+    "They only control which analysed suburbs are shown based on your risk tolerance."
+)
 
-        df_buy = df_results[df_results["Decision"] == "BUY"]
-        df_avoid = df_results[df_results["Decision"] == "AVOID"]
+risk_renters_range = st.slider(
+    "Renters proportion you are willing to consider (%)",
+    min_value=10,
+    max_value=60,
+    value=(15, 35),
+    step=1
+)
+
+risk_max_dom = st.slider(
+    "Maximum Days on Market you are willing to consider",
+    min_value=20,
+    max_value=120,
+    value=60,
+    step=5
+)
+# --------------------------------------------------------------
+df_view = df_results.copy()
+
+# Apply Renters % filter if present
+if "Renters %" in df_view.columns:
+    df_view = df_view[
+        (df_view["Renters %"] >= risk_renters_range[0]) &
+        (df_view["Renters %"] <= risk_renters_range[1])
+    ]
+
+# Apply DOM filter if present
+if "Days on Market" in df_view.columns:
+    df_view = df_view[df_view["Days on Market"] <= risk_max_dom]
+    
+        df_buy = df_view[df_view["Decision"] == "BUY"]
+        df_avoid = df_view[df_view["Decision"] == "AVOID"]
+
 
         
         TOP_N = 5
