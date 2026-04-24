@@ -20,6 +20,10 @@ if "dsr_selected_suburbs" not in st.session_state:
     st.session_state.dsr_selected_suburbs = set()
 if "explorer_selected_suburbs" not in st.session_state:
     st.session_state.explorer_selected_suburbs = set()
+if "risk_renters_range" not in st.session_state:
+    st.session_state.risk_renters_range = (15, 35)
+if "risk_max_dom" not in st.session_state:
+    st.session_state.risk_max_dom = 60
 
 # ====================== CLIENT MODE ======================
 client_mode = st.radio("Client Type", ("DSR Upload", "Explorer"), horizontal=True)
@@ -245,16 +249,20 @@ if current_selected_suburbs:
             "Renters proportion you are willing to consider (%)",
             min_value=10,
             max_value=60,
-            value=(15, 35),
-            step=1
+            value=st.session_state.risk_renters_range,
+            step=1,
+            key="risk_renters_range"
+
         )
 
         risk_max_dom = st.slider(
             "Maximum Days on Market you are willing to consider",
             min_value=20,
             max_value=120,
-            value=60,
-            step=5
+            value=st.session_state.risk_max_dom,
+            step=5,
+            key="risk_max_dom"
+
         )
         # --------------------------------------------------------------
 
