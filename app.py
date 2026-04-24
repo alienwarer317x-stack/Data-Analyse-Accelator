@@ -226,7 +226,7 @@ if current_selected_suburbs:
                 "Narrative": analysis["Narrative"],
             })
 
-        # ---------- RESULTS TABLES ----------
+ # ---------- RESULTS TABLES ----------
         st.subheader("✅ Deep Analysis Results")
 
         df_results = pd.DataFrame(results)
@@ -234,56 +234,61 @@ if current_selected_suburbs:
             by=["Investability Score", "Demand / Supply Ratio"],
             ascending=[False, False]
         )
-# ---------- RISK APPETITE FILTERS (POST‑ANALYSIS ONLY) ----------
-st.markdown("### ⚖️ Risk Appetite Filters (Post‑Analysis View)")
-st.caption(
-    "These filters do NOT change BUY / AVOID decisions. "
-    "They only control which analysed suburbs are shown based on your risk tolerance."
-)
 
-risk_renters_range = st.slider(
-    "Renters proportion you are willing to consider (%)",
-    min_value=10,
-    max_value=60,
-    value=(15, 35),
-    step=1
-)
+        # ---------- RISK APPETITE FILTERS (POST-ANALYSIS ONLY) ----------
+        st.markdown("### ⚖️ Risk Appetite Filters (Post‑Analysis View)")
+        st.caption(
+            "These filters do NOT change BUY / AVOID decisions. "
+            "They only control which analysed suburbs are shown based on your risk tolerance."
+        )
 
-risk_max_dom = st.slider(
-    "Maximum Days on Market you are willing to consider",
-    min_value=20,
-    max_value=120,
-    value=60,
-    step=5
-)
-# --------------------------------------------------------------
-df_view = df_results.copy()
+        risk_renters_range = st.slider(
+            "Renters proportion you are willing to consider (%)",
+            min_value=10,
+            max_value=60,
+            value=(15, 35),
+            step=1
+        )
 
-# Apply Renters % filter if present
-if "Renters %" in df_view.columns:
-    df_view = df_view[
-        (df_view["Renters %"] >= risk_renters_range[0]) &
-        (df_view["Renters %"] <= risk_renters_range[1])
-    ]
+        risk_max_dom = st.slider(
+            "Maximum Days on Market you are willing to consider",
+            min_value=20,
+            max_value=120,
+            value=60,
+            step=5
+        )
+        # --------------------------------------------------------------
 
-# Apply DOM filter if present
-if "Days on Market" in df_view.columns:
-    df_view = df_view[df_view["Days on Market"] <= risk_max_dom]
-    
+        # View-only filtering (engine results remain untouched)
+        df_view = df_results.copy()
+
+        if "Renters %" in df_view.columns:
+            df_view = df_view[
+                (df_view["Renters %"] >= risk_renters_range[0]) &
+                (df_view["Renters %"] <= risk_renters_range[1])
+            ]
+
+        if "Days on Market" in df_view.columns:
+            df_view = df_view[df_view["Days on Market"] <= risk_max_dom]
+
         df_buy = df_view[df_view["Decision"] == "BUY"]
         df_avoid = df_view[df_view["Decision"] == "AVOID"]
 
-
-        
         TOP_N = 5
         df_top_buy = df_buy.head(TOP_N)
-
 
         st.markdown("### 🏆 Top BUY Opportunities")
         st.dataframe(
             df_buy[
-                ["Suburb", "Decision", "Confidence",
-                 "Confidence Score", "Investability Score", "Demand / Supply Ratio", "Failed Gates"]
+                [
+                    "Suburb",
+                    "Decision",
+                    "Confidence",
+                    "Confidence Score",
+                    "Investability Score",
+                    "Demand / Supply Ratio",
+                    "Failed Gates"
+                ]
             ],
             use_container_width=True
         )
@@ -291,8 +296,15 @@ if "Days on Market" in df_view.columns:
         st.markdown("### ⚠️ AVOID / Watchlist Suburbs")
         st.dataframe(
             df_avoid[
-                ["Suburb", "Decision", "Confidence",
-                 "Confidence Score", "Investability Score","Demand / Supply Ratio", "Failed Gates"]
+                [
+                    "Suburb",
+                    "Decision",
+                    "Confidence",
+                    "Confidence Score",
+                    "Investability Score",
+                    "Demand / Supply Ratio",
+                    "Failed Gates"
+                ]
             ],
             use_container_width=True
         )
