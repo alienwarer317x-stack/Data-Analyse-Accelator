@@ -308,18 +308,36 @@ if st.session_state.deep_analysis_results:
     )
 
     # Build a quick lookup from stored deep analysis results
-    res_map = {r["Suburb"]: r for r in st.session_state.deep_analysis_results}
-    chosen = res_map.get(selected_profile_suburb)
+res_map = {r["Suburb"]: r for r in st.session_state.deep_analysis_results}
+chosen = res_map.get(selected_profile_suburb)
 
-    if chosen:
-        # Header
-        st.markdown(f"### {chosen['Suburb']}")
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Decision", chosen["Decision"])
-        c2.metric("Confidence", chosen["Confidence"])
-        c3.metric("Investability Score", chosen["Investability Score"])
-        c4.metric("Demand / Supply Ratio", chosen["Demand / Supply Ratio"])
+# Pull extra suburb facts from the current discovery dataframe (Stage 1)
+extra = None
+try:
+    match = current_discovery_df[current_discovery_df["Suburb"] == selected_profile_suburb]
+    if not match.empty:
+        extra = match.iloc[0].to_dict()
+except Exception:
+    extra = None
 
+if chosen:
+    st.markdown(f"### {chosen['Suburb']}")
+
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Decision", chosen["Decision"])
+    c2.metric("Confidence", chosen["Confidence"])
+    c3.metric("Investability Score", chosen["Investability Score"])
+    c4.metric("Demand / Supply Ratio", chosen["Demand / Supply Ratio"])
+
+    # Extra facts (from discovery data)
+    if extra:
+        st.markdown("#### 📌 Quick Facts (from discovery data)")
+        f1, f2, f3, f4 = st.columns(4)
+        f1.metric("State", extra.get("State", ""))
+        f2.metric("Days on Market", extra.get("Days on Market", ""))
+        f3.metric("Yield %", extra.get("Yield %", ""))
+        f4.metric("Median Price", extra.get("Median Price", ""))
+        
         # Quick links (no scraping)
         query = f"{chosen['Suburb']} {('Australia')}"
         st.link_button("🗺️ Open in Google Maps", f"https://www.google.com/maps/search/?api=1&query={query}")
