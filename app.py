@@ -200,48 +200,41 @@ if current_selected_suburbs:
     st.markdown("## 🟥 Stage 2 — Deep Analysis (Authoritative Engine)")
 
     if st.button("Run Deep Analysis on Selected Suburbs"):
-    results = []
+        results = []
 
-    for _, r in current_discovery_df.iterrows():
-        if r["Suburb"] not in current_selected_suburbs:
-            continue
+        for _, r in current_discovery_df.iterrows():
+            if r["Suburb"] not in current_selected_suburbs:
+                continue
 
-        if client_mode == "DSR Upload":
-            row = r["_row"]
-        else:
-            row = build_row_from_sqm(
-                state=r.get("State"),
-                suburb=r.get("Suburb")
-            )
+            if client_mode == "DSR Upload":
+                row = r["_row"]
+            else:
+                row = build_row_from_sqm(
+                    state=r.get("State"),
+                    suburb=r.get("Suburb")
+                )
 
-        analysis = evaluate_suburb({
-            **row,
-            "State": r.get("State"),
-            "Suburb": r.get("Suburb")
-        })
+            analysis = evaluate_suburb({
+                **row,
+                "State": r.get("State"),
+                "Suburb": r.get("Suburb")
+            })
 
-        results.append({
-            "Suburb": r["Suburb"],
-            "Decision": analysis["Decision"],
-            "Confidence": analysis["Confidence"],
-            "Confidence Score": analysis["Confidence Score"],
-            "Investability Score": analysis["Investability Score"],
-            "Demand / Supply Ratio": analysis["Demand / Supply Ratio"],
-            "Failed Gates": ", ".join(analysis["Failed Gates"]),
-            "Narrative": analysis["Narrative"],
-        })
+            results.append({
+                "Suburb": r["Suburb"],
+                "Decision": analysis["Decision"],
+                "Confidence": analysis["Confidence"],
+                "Confidence Score": analysis["Confidence Score"],
+                "Investability Score": analysis["Investability Score"],
+                "Demand / Supply Ratio": analysis["Demand / Supply Ratio"],
+                "Failed Gates": ", ".join(analysis["Failed Gates"]),
+                "Narrative": analysis["Narrative"],
+            })
 
-    # ✅ STORE RESULTS — NOTHING ELSE HERE
-    st.session_state.deep_analysis_results = results
-    
- # ---------- RESULTS TABLES ----------
-        st.subheader("✅ Deep Analysis Results")
+        # ✅ STORE RESULTS — ENGINE RUNS ONCE
+        st.session_state.deep_analysis_results = results
 
-        df_results = pd.DataFrame(results)
-        df_results = df_results.sort_values(
-            by=["Investability Score", "Demand / Supply Ratio"],
-            ascending=[False, False]
-        )
+
 # ====================== STAGE 2 — RESULTS VIEW ======================
 if st.session_state.deep_analysis_results:
     st.subheader("✅ Deep Analysis Results")
@@ -277,7 +270,6 @@ if st.session_state.deep_analysis_results:
         key="risk_max_dom"
     )
 
-    # ---------- VIEW FILTERING ----------
     df_view = df_results.copy()
 
     if "Renters %" in df_view.columns:
@@ -297,108 +289,30 @@ if st.session_state.deep_analysis_results:
 
     st.markdown("### ⚠️ AVOID / Watchlist Suburbs")
     st.dataframe(df_avoid, use_container_width=True)
-    
-        # ---------- RISK APPETITE FILTERS (POST-ANALYSIS ONLY) ----------
-        st.markdown("### ⚖️ Risk Appetite Filters (Post‑Analysis View)")
-        st.caption(
-            "These filters do NOT change BUY / AVOID decisions. "
-            "They only control which analysed suburbs are shown based on your risk tolerance."
-        )
 
-        risk_renters_range = st.slider(
-            "Renters proportion you are willing to consider (%)",
-            min_value=10,
-            max_value=60,
-            value=st.session_state.risk_renters_range,
-            step=1,
-            key="risk_renters_range"
+    # ---------- NARRATIVE ----------
+    st.subheader("🧠 Investment Rationale")
 
-        )
+    for res in st.session_state.deep_analysis_results:
+        narrative = res["Narrative"]
 
-        risk_max_dom = st.slider(
-            "Maximum Days on Market you are willing to consider",
-            min_value=20,
-            max_value=120,
-            value=st.session_state.risk_max_dom,
-            step=5,
-            key="risk_max_dom"
+        with st.expander(narrative["headline"]):
+            if narrative["strengths"]:
+                st.markdown("### ✅ Strengths")
+                for s in narrative["strengths"]:
+                    st.markdown(f"- {s}")
 
-        )
-        # --------------------------------------------------------------
+            if narrative["risks"]:
+                st.markdown("### ⚠️ Risks")
+                for r in narrative["risks"]:
+                    st.markdown(f"- {r}")
 
-        # View-only filtering (engine results remain untouched)
-        df_view = df_results.copy()
+            if narrative["failed_gate_explanations"]:
+                st.markdown("### ❌ Failed Investment Criteria")
+                for g in narrative["failed_gate_explanations"]:
+                    st.markdown(f"- {g}")
 
-        if "Renters %" in df_view.columns:
-            df_view = df_view[
-                (df_view["Renters %"] >= risk_renters_range[0]) &
-                (df_view["Renters %"] <= risk_renters_range[1])
-            ]
-
-        if "Days on Market" in df_view.columns:
-            df_view = df_view[df_view["Days on Market"] <= risk_max_dom]
-
-        df_buy = df_view[df_view["Decision"] == "BUY"]
-        df_avoid = df_view[df_view["Decision"] == "AVOID"]
-
-        TOP_N = 5
-        df_top_buy = df_buy.head(TOP_N)
-
-        st.markdown("### 🏆 Top BUY Opportunities")
-        st.dataframe(
-            df_buy[
-                [
-                    "Suburb",
-                    "Decision",
-                    "Confidence",
-                    "Confidence Score",
-                    "Investability Score",
-                    "Demand / Supply Ratio",
-                    "Failed Gates"
-                ]
-            ],
-            use_container_width=True
-        )
-
-        st.markdown("### ⚠️ AVOID / Watchlist Suburbs")
-        st.dataframe(
-            df_avoid[
-                [
-                    "Suburb",
-                    "Decision",
-                    "Confidence",
-                    "Confidence Score",
-                    "Investability Score",
-                    "Demand / Supply Ratio",
-                    "Failed Gates"
-                ]
-            ],
-            use_container_width=True
-        )
-
-        # ---------- NARRATIVE ----------
-        st.subheader("🧠 Investment Rationale")
-
-        for res in results:
-            narrative = res["Narrative"]
-
-            with st.expander(narrative["headline"]):
-                if narrative["strengths"]:
-                    st.markdown("### ✅ Strengths")
-                    for s in narrative["strengths"]:
-                        st.markdown(f"- {s}")
-
-                if narrative["risks"]:
-                    st.markdown("### ⚠️ Risks")
-                    for r in narrative["risks"]:
-                        st.markdown(f"- {r}")
-
-                if narrative["failed_gate_explanations"]:
-                    st.markdown("### ❌ Failed Investment Criteria")
-                    for g in narrative["failed_gate_explanations"]:
-                        st.markdown(f"- {g}")
-
-                if narrative.get("path_to_buy"):
-                    st.markdown("### 🔁 What would need to change to become a BUY")
-                    for action in narrative["path_to_buy"]:
-                        st.markdown(f"- {action}")
+            if narrative.get("path_to_buy"):
+                st.markdown("### 🔁 What would need to change to become a BUY")
+                for action in narrative["path_to_buy"]:
+                    st.markdown(f"- {action}")
