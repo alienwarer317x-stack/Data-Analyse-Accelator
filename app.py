@@ -290,29 +290,72 @@ if st.session_state.deep_analysis_results:
     st.markdown("### ⚠️ AVOID / Watchlist Suburbs")
     st.dataframe(df_avoid, use_container_width=True)
 
-    # ---------- NARRATIVE ----------
-    st.subheader("🧠 Investment Rationale")
+   # ====================== SUBURB PROFILE (SELECT ONE) ======================
+    st.subheader("🏘️ Suburb Profile")
 
-    for res in st.session_state.deep_analysis_results:
-        narrative = res["Narrative"]
+    # Prefer selecting from BUY list; fallback to all viewed suburbs
+    if not df_buy.empty:
+        profile_options = df_buy["Suburb"].tolist()
+        st.caption("Showing suburbs from 🏆 Top BUY Opportunities (based on your Risk Appetite view).")
+    else:
+        profile_options = df_view["Suburb"].tolist()
+        st.caption("No BUY suburbs in the current view — showing all analysed suburbs instead.")
 
-        with st.expander(narrative["headline"]):
-            if narrative["strengths"]:
-                st.markdown("### ✅ Strengths")
-                for s in narrative["strengths"]:
-                    st.markdown(f"- {s}")
+    selected_profile_suburb = st.selectbox(
+        "Select a suburb to view details",
+        options=profile_options,
+        key="selected_profile_suburb"
+    )
 
-            if narrative["risks"]:
-                st.markdown("### ⚠️ Risks")
-                for r in narrative["risks"]:
-                    st.markdown(f"- {r}")
+    # Build a quick lookup from stored deep analysis results
+    res_map = {r["Suburb"]: r for r in st.session_state.deep_analysis_results}
+    chosen = res_map.get(selected_profile_suburb)
 
-            if narrative["failed_gate_explanations"]:
-                st.markdown("### ❌ Failed Investment Criteria")
-                for g in narrative["failed_gate_explanations"]:
-                    st.markdown(f"- {g}")
+    if chosen:
+        # Header
+        st.markdown(f"### {chosen['Suburb']}")
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Decision", chosen["Decision"])
+        c2.metric("Confidence", chosen["Confidence"])
+        c3.metric("Investability Score", chosen["Investability Score"])
+        c4.metric("Demand / Supply Ratio", chosen["Demand / Supply Ratio"])
 
-            if narrative.get("path_to_buy"):
-                st.markdown("### 🔁 What would need to change to become a BUY")
-                for action in narrative["path_to_buy"]:
-                    st.markdown(f"- {action}")
+        # Quick links (no scraping)
+        query = f"{chosen['Suburb']} {('Australia')}"
+        st.link_button("🗺️ Open in Google Maps", f"https://www.google.com/maps/search/?api=1&query={query}")
+        st.link_button("🔎 Search AreaSearch for this suburb", f"https://www.google.com/search?q=site:areasearch.com.au+suburb+{query}")
+
+        # Failed gates
+        st.markdown("#### ❌ Failed Gates (from authoritative engine)")
+        failed_text = chosen.get("Failed Gates", "")
+        if failed_text:
+            st.write(failed_text)
+        else:
+            st.write("None")
+
+        # Narrative summary (clean, not an accordion dump)
+        narrative = chosen.get("Narrative", {})
+        st.markdown("#### ✅ Strengths")
+        strengths = narrative.get("strengths", [])
+        if strengths:
+            for s in strengths[:5]:
+                st.markdown(f"- {s}")
+        else:
+            st.write("No strengths captured.")
+
+        st.markdown("#### ⚠️ Risks")
+        risks = narrative.get("risks", [])
+        if risks:
+            for r in risks[:5]:
+                st.markdown(f"- {r}")
+        else:
+            st.write("No risks captured.")
+
+        # Optional: path-to-buy (only if exists)
+        path = narrative.get("path_to_buy", [])
+        if path:
+            st.markdown("#### 🔁 What would need to change to become a BUY")
+            for p in path[:6]:
+                st.markdown(f"- {p}")
+    else:
+        st.warning("No stored analysis found for the selected suburb.")
