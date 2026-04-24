@@ -34,7 +34,7 @@ with col1:
         "State",
         ["All", "NSW", "VIC", "QLD", "TAS", "NT", "WA", "SA"]
     )
-    max_dom = st.slider("Maximum Days on Market", 0, 180, 90)
+   
 
 with col2:
     max_price = st.slider(
@@ -90,8 +90,7 @@ if client_mode == "DSR Upload":
             )
             yld = normalise_percent(r.get("Gross rental yield"))
 
-            if dom is None or dom > max_dom:
-                continue
+            
             if price is not None and price > max_price:
                 continue
 
@@ -114,7 +113,7 @@ if client_mode == "Explorer" and st.button("Apply Discovery Filters"):
     ]
 
     df = pd.DataFrame(demo_data)
-    df = df[(df["Median Price"] <= max_price) & (df["Days on Market"] <= max_dom)]
+    df = df[df["Median Price"] <= max_price]
     st.session_state.explorer_discovery_df = df
 
 # inside app.py Explorer branch
