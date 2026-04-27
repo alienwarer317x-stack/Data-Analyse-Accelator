@@ -2,6 +2,7 @@ from ingestion.scoring import score_row
 from engine import evaluate_suburb
 from ingestion.sqm_adapter import build_row_from_sqm
 from ingestion.dsr_adapter import build_row_from_dsr
+from ingestion.suburb_lookup import lookup_suburb
 import streamlit as st
 import pandas as pd
 from io import BytesIO
@@ -320,6 +321,13 @@ if st.session_state.deep_analysis_results:
             extra = match.iloc[0].to_dict()
     except Exception:
         extra = None
+        
+    # Enrich suburb data using lookup table (postcode, LGA, etc.)
+    lookup = lookup_suburb(
+    selected_profile_suburb,
+    extra.get("State") if extra else None
+    )    
+    postcode = lookup.get("Postcode")
 
     if chosen:
         st.markdown(f"### {chosen['Suburb']}")
