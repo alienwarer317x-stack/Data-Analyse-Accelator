@@ -105,6 +105,7 @@ if client_mode == "DSR Upload":
                 "Suburb": r.get("Suburb"),
                 "Median Price": price,
                 "Days on Market": dom,
+                "Postcode": r.get("Postcode") or r.get("Post Code"),
                 "Yield %": round(yld, 2) if yld is not None else None,
                 "_row": build_row_from_dsr(r)
             })
@@ -332,12 +333,13 @@ if st.session_state.deep_analysis_results:
         # Extra facts (from discovery data)
         if extra:
             st.markdown("#### 📌 Quick Facts (from discovery data)")
-            f1, f2, f3, f4 = st.columns(4)
+            f0, f1, f2, f3, f4 = st.columns(5)
+            f0.metric("Postcode", extra.get("Postcode", ""))
             f1.metric("State", extra.get("State", ""))
             f2.metric("Days on Market", extra.get("Days on Market", ""))
             f3.metric("Yield %", extra.get("Yield %", ""))
             f4.metric("Median Price", extra.get("Median Price", ""))
-
+                        
         # Quick links (no scraping)
         query = f"{chosen['Suburb']} {('Australia')}"
         st.link_button("🗺️ Open in Google Maps", f"https://www.google.com/maps/search/?api=1&query={query}")
