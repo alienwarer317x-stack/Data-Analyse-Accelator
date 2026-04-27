@@ -33,6 +33,7 @@ def build_row_from_dsr(r):
         "Gross rental yield": to_float(r.get("Gross rental yield")),
         "Percent renters in market": to_float(r.get("Percent renters in market")),
         "Statistical reliability": to_float(r.get("Statistical reliability")),
+        "Postcode": r.get("Postcode") or r.get("Post Code"),
 
         # === CONTEXT (SAFE, NOT USED BY LOGIC) ===
         "State": r.get("State"),
