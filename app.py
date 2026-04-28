@@ -484,6 +484,12 @@ if st.session_state.deep_analysis_results:
                 st.warning("Household income growth has been weak")
             else:
                 st.info("Income growth data unavailable")
+            
+            affordability = structural.get("housing_affordability")
+            if affordability == "Good":
+                st.success("Housing affordability remains supportive")
+            elif affordability == "Poor":
+                st.warning("Housing affordability is stretched")
 
     # ====================== OPTIONAL — INFRASTRUCTURE ======================
     with tabs[3]:
