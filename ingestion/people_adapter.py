@@ -11,7 +11,7 @@ if os.path.exists(PATH):
         _PEOPLE = None
 
 
-def get_people_profile(suburb, state=None, postcode=None):
+def get_people_profile(suburb, state=None, post code=None):
     """
     Returns ABS-based demographic metrics for a suburb.
     Fails safely if data not found.
@@ -19,13 +19,24 @@ def get_people_profile(suburb, state=None, postcode=None):
     if _PEOPLE is None or not suburb:
         return {}
 
-    df = _PEOPLE[_PEOPLE["Suburb"].str.upper() == suburb.upper()]
+    df = _PEOPLE[
+    _PEOPLE["Suburb"]
+    .astype(str)
+    .str.upper()
+    .str.strip()
+    == suburb.upper().strip()
+    ]
 
     if state and "State" in df.columns:
         df = df[df["State"] == state]
 
     if postcode and "Postcode" in df.columns:
-        df = df[df["Postcode"] == int(postcode)]
+    try:
+        df_postcode = df[df["Postcode"].astype(str) == str(int(postcode))]
+        if not df_postcode.empty:
+            df = df_postcode
+    except Exception:
+        pass
 
     if df.empty:
         return {}
