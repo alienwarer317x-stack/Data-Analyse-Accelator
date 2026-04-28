@@ -106,7 +106,7 @@ if client_mode == "DSR Upload":
                 "Suburb": r.get("Suburb"),
                 "Median Price": price,
                 "Days on Market": dom,
-                "Postcode": r.get("Postcode") or r.get("Post Code"),
+                "Post code": r.get("Post code") or r.get("Post Code"),
                 "Yield %": round(yld, 2) if yld is not None else None,
                 "_row": build_row_from_dsr(r)
             })
