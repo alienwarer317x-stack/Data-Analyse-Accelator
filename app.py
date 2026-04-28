@@ -332,116 +332,115 @@ if st.session_state.deep_analysis_results:
     if chosen:
         st.markdown(f"### {chosen['Suburb']}")
 # ====================== A) SUBURB PROFILE TABS ======================
-tabs = st.tabs(["Overview", "People", "Economy", "Infrastructure", "Risk"])
+if chosen:
+    tabs = st.tabs(["Overview", "People", "Economy", "Infrastructure", "Risk"])
 
-# ====================== A1 / A2 — OVERVIEW ======================
-with tabs[0]:
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Decision", chosen["Decision"])
-    c2.metric("Confidence", chosen["Confidence"])
-    c3.metric("Investability Score", chosen["Investability Score"])
-    c4.metric("Demand / Supply Ratio", chosen["Demand / Supply Ratio"])
+    # ====================== A1 / A2 — OVERVIEW ======================
+    with tabs[0]:
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Decision", chosen["Decision"])
+        c2.metric("Confidence", chosen["Confidence"])
+        c3.metric("Investability Score", chosen["Investability Score"])
+        c4.metric("Demand / Supply Ratio", chosen["Demand / Supply Ratio"])
 
-    # Extra facts (from discovery data)
-    if extra:
-        st.markdown("#### 📌 Quick Facts (from discovery data)")
-        f0, f1, f2, f3, f4 = st.columns(5)
-        f0.metric("Postcode", extra.get("Postcode", ""))
-        f1.metric("State", extra.get("State", ""))
-        f2.metric("Days on Market", extra.get("Days on Market", ""))
-        f3.metric("Yield %", extra.get("Yield %", ""))
-        f4.metric("Median Price", extra.get("Median Price", ""))
+        # Extra facts (from discovery data)
+        if extra:
+            st.markdown("#### 📌 Quick Facts (from discovery data)")
+            f0, f1, f2, f3, f4 = st.columns(5)
+            f0.metric("Postcode", extra.get("Postcode", ""))
+            f1.metric("State", extra.get("State", ""))
+            f2.metric("Days on Market", extra.get("Days on Market", ""))
+            f3.metric("Yield %", extra.get("Yield %", ""))
+            f4.metric("Median Price", extra.get("Median Price", ""))
 
-    # ====================== C / C1 — MAP ======================
-    st.markdown("#### 🗺️ Map")
-    map_query = f"{chosen['Suburb']}, {extra.get('State', '')} {extra.get('Postcode', '')}".replace(" ", "+")
-    st.components.v1.iframe(
-        src=f"https://www.google.com/maps?q={map_query}&output=embed",
-        height=350
-    )
+        # ====================== C / C1 — MAP ======================
+        st.markdown("#### 🗺️ Map")
+        map_query = f"{chosen['Suburb']}, {extra.get('State', '')} {extra.get('Postcode', '')}".replace(" ", "+")
+        st.components.v1.iframe(
+            src=f"https://www.google.com/maps?q={map_query}&output=embed",
+            height=350
+        )
 
-    # Quick links (no scraping)
-    st.link_button(
-        "🗺️ Open in Google Maps",
-        f"https://www.google.com/maps/search/?api=1&query={chosen['Suburb']} {extra.get('State', '')}"
-    )
-    st.link_button(
-        "🔎 Search AreaSearch for this suburb",
-        f"https://www.google.com/search?q=site:areasearch.com.au+suburb+{chosen['Suburb']}"
-    )
+        # Quick links
+        st.link_button(
+            "🗺️ Open in Google Maps",
+            f"https://www.google.com/maps/search/?api=1&query={chosen['Suburb']} {extra.get('State', '')}"
+        )
+        st.link_button(
+            "🔎 Search AreaSearch for this suburb",
+            f"https://www.google.com/search?q=site:areasearch.com.au+suburb+{chosen['Suburb']}"
+        )
 
-    # Failed gates
-    st.markdown("#### ❌ Failed Gates (from authoritative engine)")
-    failed_text = chosen.get("Failed Gates", "")
-    st.write(failed_text if failed_text else "None")
+        # Failed gates
+        st.markdown("#### ❌ Failed Gates (from authoritative engine)")
+        failed_text = chosen.get("Failed Gates", "")
+        st.write(failed_text if failed_text else "None")
 
-    # Narrative summary
-    narrative = chosen.get("Narrative", {})
+        # Narrative summary
+        narrative = chosen.get("Narrative", {})
 
-    st.markdown("#### ✅ Strengths")
-    strengths = narrative.get("strengths", [])
-    if strengths:
-        for s in strengths[:5]:
-            st.markdown(f"- {s}")
-    else:
-        st.write("No strengths captured.")
+        st.markdown("#### ✅ Strengths")
+        strengths = narrative.get("strengths", [])
+        if strengths:
+            for s in strengths[:5]:
+                st.markdown(f"- {s}")
+        else:
+            st.write("No strengths captured.")
 
-    st.markdown("#### ⚠️ Risks")
-    risks = narrative.get("risks", [])
-    if risks:
-        for r in risks[:5]:
-            st.markdown(f"- {r}")
-    else:
-        st.write("No risks captured.")
+        st.markdown("#### ⚠️ Risks")
+        risks = narrative.get("risks", [])
+        if risks:
+            for r in risks[:5]:
+                st.markdown(f"- {r}")
+        else:
+            st.write("No risks captured.")
 
-    # Optional: path-to-buy
-    path = narrative.get("path_to_buy", [])
-    if path:
-        st.markdown("#### 🔁 What would need to change to become a BUY")
-        for p in path[:6]:
-            st.markdown(f"- {p}")
+        # Optional: path-to-buy
+        path = narrative.get("path_to_buy", [])
+        if path:
+            st.markdown("#### 🔁 What would need to change to become a BUY")
+            for p in path[:6]:
+                st.markdown(f"- {p}")
 
-# ====================== B / B1 — PEOPLE ======================
-with tabs[1]:
-    st.markdown("#### 👥 Population & Demographics")
-    st.info(
-        "Population and demographic metrics will appear here "
-        "once ABS / Census datasets are connected."
-    )
+    # ====================== B / B1 — PEOPLE ======================
+    with tabs[1]:
+        st.markdown("#### 👥 Population & Demographics")
+        st.info(
+            "Population and demographic metrics will appear here "
+            "once ABS / Census datasets are connected."
+        )
 
-    p1, p2, p3, p4 = st.columns(4)
-    p1.metric("Population", "—")
-    p2.metric("Population Growth", "—")
-    p3.metric("Median Age", "—")
-    p4.metric("Household Size", "—")
+        p1, p2, p3, p4 = st.columns(4)
+        p1.metric("Population", "—")
+        p2.metric("Population Growth", "—")
+        p3.metric("Median Age", "—")
+        p4.metric("Household Size", "—")
 
-    st.markdown("**Household Composition**")
-    st.write("- Families: —")
-    st.write("- Renters: —")
-    st.write("- Owner‑occupiers: —")
+        st.markdown("**Household Composition**")
+        st.write("- Families: —")
+        st.write("- Renters: —")
+        st.write("- Owner‑occupiers: —")
 
-# ====================== OPTIONAL — ECONOMY ======================
-with tabs[2]:
-    st.markdown("#### 🏭 Economy & Employment")
-    st.info("Employment mix, key industries, and job infrastructure will be shown here.")
+    # ====================== OPTIONAL — ECONOMY ======================
+    with tabs[2]:
+        st.markdown("#### 🏭 Economy & Employment")
+        st.info("Employment mix, industries, and job infrastructure will be shown here.")
 
-# ====================== OPTIONAL — INFRASTRUCTURE ======================
-with tabs[3]:
-    st.markdown("#### 🚧 Infrastructure & Amenities")
-    st.info("Transport, schools, healthcare, and amenity access will be shown here.")
+    # ====================== OPTIONAL — INFRASTRUCTURE ======================
+    with tabs[3]:
+        st.markdown("#### 🚧 Infrastructure & Amenities")
+        st.info("Transport, schools, healthcare, and amenity access will be shown here.")
 
-# ====================== OPTIONAL — RISK ======================
-with tabs[4]:
-    st.markdown("#### ⚠️ Investment Risk Summary")
+    # ====================== OPTIONAL — RISK ======================
+    with tabs[4]:
+        st.markdown("#### ⚠️ Investment Risk Summary")
+        st.write("**Failed Gates:**")
+        st.write(chosen.get("Failed Gates", "None"))
 
-    st.write("**Failed Gates:**")
-    st.write(chosen.get("Failed Gates", "None"))
-
-    narrative = chosen.get("Narrative", {})
-    risks = narrative.get("risks", [])
-
-    if risks:
-        for r in risks:
-            st.markdown(f"- {r}")
-    else:
-        st.write("No major risks identified.")
+        narrative = chosen.get("Narrative", {})
+        risks = narrative.get("risks", [])
+        if risks:
+            for r in risks:
+                st.markdown(f"- {r}")
+        else:
+            st.write("No major risks identified.")
