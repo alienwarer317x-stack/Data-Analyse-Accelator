@@ -287,11 +287,24 @@ if st.session_state.deep_analysis_results:
     if "Days on Market" in df_view.columns:
         df_view = df_view[df_view["Days on Market"] <= risk_max_dom]
 
+    st.markdown("### ⚖️ Decision Lens")
+
+    view_mode = st.radio(
+        "View mode",
+        options=["Strict (Engine BUY only)", "Expanded (Risk‑tolerant view)"],
+        horizontal=True
+    )
+
+    if view_mode == "Strict (Engine BUY only)":
+        df_display_buy = df_results[df_results["Decision"] == "BUY"]
+    else:
+        df_display_buy = df_view[df_view["Decision"] == "BUY"]
+        
     df_buy = df_view[df_view["Decision"] == "BUY"]
     df_avoid = df_view[df_view["Decision"] == "AVOID"]
 
     st.markdown("### 🏆 Top BUY Opportunities")
-    st.dataframe(df_buy, use_container_width=True)
+    st.dataframe(df_display_buy, use_container_width=True)
 
     st.markdown("### ⚠️ AVOID / Watchlist Suburbs")
     st.dataframe(df_avoid, use_container_width=True)
