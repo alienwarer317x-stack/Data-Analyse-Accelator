@@ -365,7 +365,6 @@ if st.session_state.deep_analysis_results:
             height=350
         )
         st.markdown("#### 🗺️ Map")
-
         lat = lookup.get("Latitude")
         lon = lookup.get("Longitude")
 
@@ -445,7 +444,7 @@ st.caption(
         suburb=chosen["Suburb"],
         state=extra.get("State"),
         postcode=chosen.get("Postcode")
-    )
+        )
 
     if not people:
         st.info("ABS / Census data not available for this suburb yet.")
