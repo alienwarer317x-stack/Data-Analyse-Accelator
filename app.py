@@ -493,14 +493,14 @@ if st.session_state.deep_analysis_results:
 
     # ====================== OPTIONAL — INFRASTRUCTURE ======================
     with tabs[3]:
-    st.markdown("#### 🚧 Infrastructure & Amenities")
+        st.markdown("#### 🚧 Infrastructure & Amenities")
 
-    structural = get_structural_fundamentals(chosen["Suburb"])
+        structural = get_structural_fundamentals(chosen["Suburb"])
 
-    if not structural:
-        st.info("Infrastructure data not available for this suburb yet.")
-    else:
-        travel = structural.get("average_travel_time")
+        if not structural:
+            st.info("Infrastructure data not available for this suburb yet.")
+        else:
+            travel = structural.get("average_travel_time")
 
         if travel is not None:
             st.metric("Average Commute Time (mins)", travel)
