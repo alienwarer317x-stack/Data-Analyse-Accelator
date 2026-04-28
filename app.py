@@ -224,7 +224,7 @@ if current_selected_suburbs:
 
             results.append({
                 "Suburb": r["Suburb"],
-                "Postcode": r.get("Postcode"),
+                "Post code": r.get("Post code"),
                 "Decision": analysis["Decision"],
                 "Confidence": analysis["Confidence"],
                 "Confidence Score": analysis["Confidence Score"],
