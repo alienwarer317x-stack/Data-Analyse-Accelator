@@ -9,6 +9,8 @@ if os.path.exists(PATH):
         _PEOPLE = pd.read_csv(PATH)
     except Exception:
         _PEOPLE = None
+else:
+    _PEOPLE = None
 
 
 def get_people_profile(suburb, state=None, postcode=None):
@@ -19,24 +21,28 @@ def get_people_profile(suburb, state=None, postcode=None):
     if _PEOPLE is None or not suburb:
         return {}
 
-    df = _PEOPLE[
-    _PEOPLE["Suburb"]
-    .astype(str)
-    .str.upper()
-    .str.strip()
-    == suburb.upper().strip()
+    df = _PEOPLE.copy()
+
+    # Normalise suburb name
+    df = df[
+        df["Suburb"]
+        .astype(str)
+        .str.upper()
+        .str.strip()
+        == suburb.upper().strip()
     ]
 
     if state and "State" in df.columns:
         df = df[df["State"] == state]
 
+    # Postcode is optional — fallback to suburb match
     if postcode and "Postcode" in df.columns:
-    try:
-        df_postcode = df[df["Postcode"].astype(str) == str(int(postcode))]
-        if not df_postcode.empty:
-            df = df_postcode
-    except Exception:
-        pass
+        try:
+            df_pc = df[df["Postcode"].astype(str) == str(int(postcode))]
+            if not df_pc.empty:
+                df = df_pc
+        except Exception:
+            pass
 
     if df.empty:
         return {}
@@ -51,5 +57,5 @@ def get_people_profile(suburb, state=None, postcode=None):
         "renters_pct": r.get("Renters_Pct"),
         "owners_pct": r.get("Owners_Pct"),
         "families_pct": r.get("Families_Pct"),
-        "source": "ABS Census"
+        "source": "ABS Census",
     }
