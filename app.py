@@ -225,6 +225,7 @@ if current_selected_suburbs:
 
             results.append({
                 "Suburb": r["Suburb"],
+                "State": r.get("State"),
                 "Post code": r.get("Post code"),
                 "Decision": analysis["Decision"],
                 "Confidence": analysis["Confidence"],
