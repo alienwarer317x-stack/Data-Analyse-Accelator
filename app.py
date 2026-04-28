@@ -363,7 +363,21 @@ if st.session_state.deep_analysis_results:
             src=f"https://www.google.com/maps?q={map_query}&output=embed",
             height=350
         )
+        st.markdown("#### 🗺️ Map")
 
+        lat = lookup.get("Latitude")
+        lon = lookup.get("Longitude")
+
+        if lat and lon:
+            st.map(
+                pd.DataFrame(
+                    [{"lat": lat, "lon": lon}]
+                )
+            )
+        else:
+            st.info("Map location unavailable for this suburb.")
+
+        
         # Quick links
         st.link_button(
             "🗺️ Open in Google Maps",
