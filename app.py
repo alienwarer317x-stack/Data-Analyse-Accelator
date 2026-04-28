@@ -331,7 +331,9 @@ if st.session_state.deep_analysis_results:
 
     if chosen:
         st.markdown(f"### {chosen['Suburb']}")
-
+        tabs = st.tabs(["Overview", "People", "Economy", "Infrastructure", "Risk"])
+        
+    with tabs[0]:  # Overview     
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("Decision", chosen["Decision"])
         c2.metric("Confidence", chosen["Confidence"])
