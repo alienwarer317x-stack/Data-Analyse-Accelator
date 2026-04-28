@@ -11,7 +11,7 @@ if os.path.exists(PATH):
         _PEOPLE = None
 
 
-def get_people_profile(suburb, state=None, post code=None):
+def get_people_profile(suburb, state=None, postcode=None):
     """
     Returns ABS-based demographic metrics for a suburb.
     Fails safely if data not found.
