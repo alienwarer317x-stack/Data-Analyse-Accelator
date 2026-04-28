@@ -336,8 +336,8 @@ if st.session_state.deep_analysis_results:
     if chosen:
         st.markdown(f"### {chosen['Suburb']}")
 # ====================== A) SUBURB PROFILE TABS ======================
-if chosen:
-    tabs = st.tabs(["Overview", "People", "Economy", "Infrastructure", "Risk"])
+    if chosen:
+        tabs = st.tabs(["Overview", "People", "Economy", "Infrastructure", "Risk"])
 
     # ====================== A1 / A2 — OVERVIEW ======================
     with tabs[0]:
