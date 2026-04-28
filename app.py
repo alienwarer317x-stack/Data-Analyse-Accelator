@@ -348,7 +348,7 @@ if st.session_state.deep_analysis_results:
         if extra:
             st.markdown("#### 📌 Quick Facts (from discovery data)")
             f0, f1, f2, f3, f4 = st.columns(5)
-            f0.metric("Postcode", extra.get("Postcode", ""))
+            f0.metric("Post code", extra.get("Post code", ""))
             f1.metric("State", extra.get("State", ""))
             f2.metric("Days on Market", extra.get("Days on Market", ""))
             f3.metric("Yield %", extra.get("Yield %", ""))
