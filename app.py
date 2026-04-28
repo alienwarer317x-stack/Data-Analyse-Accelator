@@ -439,7 +439,7 @@ st.caption(
     # ====================== B / B1 — PEOPLE ======================
     
     with tabs[1]:  # People
-        st.markdown("#### 👥 Population & Demographics")
+    st.markdown("#### 👥 Population & Demographics")
 
         people = get_people_profile(
         suburb=chosen["Suburb"],
