@@ -3,6 +3,7 @@ from engine import evaluate_suburb
 from ingestion.sqm_adapter import build_row_from_sqm
 from ingestion.dsr_adapter import build_row_from_dsr
 from ingestion.suburb_lookup import lookup_suburb
+from ingestion.people_adapter import get_people_profile
 import streamlit as st
 import pandas as pd
 from io import BytesIO
@@ -404,23 +405,29 @@ if st.session_state.deep_analysis_results:
                 st.markdown(f"- {p}")
 
     # ====================== B / B1 — PEOPLE ======================
-    with tabs[1]:
+    
+    with tabs[1]:  # People
         st.markdown("#### 👥 Population & Demographics")
-        st.info(
-            "Population and demographic metrics will appear here "
-            "once ABS / Census datasets are connected."
-        )
 
+        people = get_people_profile(
+        suburb=chosen["Suburb"],
+        state=extra.get("State"),
+        postcode=chosen.get("Postcode")
+    )
+
+    if not people:
+        st.info("ABS / Census data not available for this suburb yet.")
+    else:
         p1, p2, p3, p4 = st.columns(4)
-        p1.metric("Population", "—")
-        p2.metric("Population Growth", "—")
-        p3.metric("Median Age", "—")
-        p4.metric("Household Size", "—")
+        p1.metric("Population", people.get("population"))
+        p2.metric("Population Growth (%)", people.get("population_growth_pct"))
+        p3.metric("Median Age", people.get("median_age"))
+        p4.metric("Household Size", people.get("household_size"))
 
         st.markdown("**Household Composition**")
-        st.write("- Families: —")
-        st.write("- Renters: —")
-        st.write("- Owner‑occupiers: —")
+        st.write(f"- Families: {people.get('families_pct')}%")
+        st.write(f"- Renters: {people.get('renters_pct')}%")
+        st.write(f"- Owner-occupiers: {people.get('owners_pct')}%")
 
     # ====================== OPTIONAL — ECONOMY ======================
     with tabs[2]:
