@@ -362,7 +362,7 @@ if st.session_state.deep_analysis_results:
         map_query = f"{chosen['Suburb']}, {extra.get('State', '')} {extra.get('Postcode', '')}".replace(" ", "+")
         st.components.v1.iframe(
             src=f"https://www.google.com/maps?q={map_query}&output=embed",
-            height=350
+            height=800
         )
 
         st.markdown("#### 🗺️ Map")
@@ -493,8 +493,31 @@ if st.session_state.deep_analysis_results:
 
     # ====================== OPTIONAL — INFRASTRUCTURE ======================
     with tabs[3]:
-        st.markdown("#### 🚧 Infrastructure & Amenities")
-        st.info("Transport, schools, healthcare, and amenity access will be shown here.")
+    st.markdown("#### 🚧 Infrastructure & Amenities")
+
+    structural = get_structural_fundamentals(chosen["Suburb"])
+
+    if not structural:
+        st.info("Infrastructure data not available for this suburb yet.")
+    else:
+        travel = structural.get("average_travel_time")
+
+        if travel is not None:
+            st.metric("Average Commute Time (mins)", travel)
+
+            if travel <= 35:
+                st.success("Commute times are favourable")
+            elif travel <= 50:
+                st.info("Commute times are moderate")
+            else:
+                st.warning("Commute times are long")
+        else:
+            st.info("Commute time data unavailable")
+
+    st.markdown("**Core Amenities (placeholders)**")
+    st.write("- Schools: Data to be added")
+    st.write("- Healthcare: Data to be added")
+    st.write("- Retail & services: Data to be added")
 
     # ====================== OPTIONAL — RISK ======================
     with tabs[4]:
