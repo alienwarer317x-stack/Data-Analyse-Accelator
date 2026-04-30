@@ -349,7 +349,6 @@ def build_authoritative_narrative(decision, dsr, growth, failed_gates, structura
 
 
 # ---------------- AUTHORITATIVE EVALUATION ----------------
-
 def evaluate_suburb(row):
     vacancy = normalise_plain(row.get("Vacancy rate"))
     stock = normalise_plain(row.get("Percent stock on market"))
@@ -456,14 +455,12 @@ def evaluate_suburb(row):
     structural_data = {
         "approval_ratio_18m": 5.5,
         "developable_land": "LOW",
-
         "prof_occ_delta_2016": abs_data.get("prof_occ_delta_2016"),
         "prof_occ_delta_2021": abs_data.get("prof_occ_delta_2021"),
         "income_delta_2016": abs_data.get("income_delta_2016"),
         "income_delta_2021": abs_data.get("income_delta_2021"),
         "rent_stress_ok_pct": abs_data.get("rent_stress_ok_pct"),
         "mortgage_stress_ok_pct": abs_data.get("mortgage_stress_ok_pct"),
-
         "job_count": 620,
         "travel_time_mins": 42,
         "employment_diversity": "HIGH",
