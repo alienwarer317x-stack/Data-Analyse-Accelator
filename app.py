@@ -35,27 +35,32 @@ CONFIDENCE_EXPLANATION = {
 
 def format_narrative_for_table(narrative):
     """
-    Convert narrative dict into a short, readable string
+    Create a short, decision-appropriate summary
     for table display only.
     """
     if not isinstance(narrative, dict):
         return ""
 
     headline = narrative.get("headline", "")
-    strengths = narrative.get("strengths", [])
+    strengths = narrative.get("strengths") or []
+    failed = narrative.get("failed_gate_explanations") or []
+    risks = narrative.get("risks") or []
 
-    summary = ""
-    if strengths:
-        summary = strengths[0]
-
-    if headline and summary:
-        return f"{headline} — {summary}"
-    elif headline:
+    # BUY: highlight strongest positive
+    if "BUY" in headline.upper():
+        if strengths:
+            return f"{headline} — {strengths[0]}"
         return headline
-    elif summary:
-        return summary
-    else:
-        return ""
+
+    # AVOID: highlight primary failure or risk
+    if "AVOID" in headline.upper():
+        if failed:
+            return f"{headline} — {failed[0]}"
+        if risks:
+            return f"{headline} — {risks[0]}"
+        return headline
+
+    return headline
 
 # ====================== SESSION STATE ======================
 if "dsr_discovery_df" not in st.session_state:
