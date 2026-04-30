@@ -171,8 +171,8 @@ def consolidate_growth_metrics(row):
 def evaluate_growth_gates(growth):
     failed = []
 
-    if growth["sqm_36m_growth_pct"] is not None and growth["sqm_36m_growth_pct"] > 50:
-        failed.append("36m Growth Too High")
+    # 36-month growth is handled exclusively via triangulation
+    # AVG GR 3yrs (SQM + HTAG + Typical) < 50%
 
     if growth["cagr_10y_pct"] is not None and growth["cagr_10y_pct"] > 7:
         failed.append("10yr CAGR Too High")
@@ -310,7 +310,8 @@ def evaluate_suburb(row):
     
     if tri_36m["status"] == "FAIL":
         failed.append("36m Growth > 50%")
-
+        decision = "AVOID"
+        
     # legacy growth gates (keep, but secondary
     failed += evaluate_growth_gates(growth)
 
