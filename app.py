@@ -328,31 +328,31 @@ if st.session_state.deep_analysis_results:
     )
 
     # Build a quick lookup from stored deep analysis results
-    res_map = {r["Suburb"]: r for r in st.session_state.deep_analysis_results}
-    chosen = res_map.get(selected_profile_suburb)
+res_map = {r["Suburb"]: r for r in st.session_state.deep_analysis_results}
+chosen = res_map.get(selected_profile_suburb)
 
-    # Pull extra suburb facts from the current discovery dataframe (Stage 1)
+# Pull extra suburb facts from the current discovery dataframe (Stage 1)
+extra = None
+try:
+    match = current_discovery_df[current_discovery_df["Suburb"] == selected_profile_suburb]
+    if not match.empty:
+        extra = match.iloc[0].to_dict()
+except Exception:
     extra = None
-    try:
-        match = current_discovery_df[current_discovery_df["Suburb"] == selected_profile_suburb]
-        if not match.empty:
-            extra = match.iloc[0].to_dict()
-    except Exception:
-        extra = None
-        
-    # Enrich suburb data using lookup table (postcode, LGA, etc.)
-    lookup = lookup_suburb(
+
+# Enrich suburb data using lookup table (postcode, LGA, centroid, etc.)
+lookup = lookup_suburb(
     selected_profile_suburb,
     extra.get("State") if extra else None
-    )    
-    postcode = lookup.get("Postcode")
+)
+postcode = lookup.get("Postcode")
 
-    if chosen:
-        st.markdown(f"### {chosen['Suburb']}")
-# ====================== A) SUBURB PROFILE TABS ======================
-    if chosen:
-        tabs = st.tabs(["Overview", "People", "Economy", "Infrastructure", "Risk"])
+# ====================== SUBURB PROFILE ======================
+if chosen:
+    st.markdown(f"### {chosen['Suburb']}")
 
+    # ====================== A) SUBURB PROFILE TABS ======================
+    tabs = st.tabs(["Overview", "People", "Economy", "Infrastructure", "Risk"])
     # ====================== A1 / A2 — OVERVIEW ======================
     with tabs[0]:
         c1, c2, c3, c4 = st.columns(4)
