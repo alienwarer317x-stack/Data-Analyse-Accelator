@@ -292,9 +292,8 @@ if st.session_state.deep_analysis_results:
     
     # Clean narrative for table display
     if "Narrative" in df_results.columns:
-
-    df_results["Narrative"] = df_results["Narrative"].apply(
-        format_narrative_for_table)
+        df_results["Narrative"] = df_results["Narrative"].apply(
+            format_narrative_for_table)
     
     df_results = df_results.sort_values(
         by=["Investability Score", "Demand / Supply Ratio"],
