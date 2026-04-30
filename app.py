@@ -434,14 +434,6 @@ if chosen:
             height=800
         )
 
-        st.markdown("#### 🗺️ Map")
-        lat = lookup.get("Latitude")
-        lon = lookup.get("Longitude")
-
-        if lat and lon:
-            st.map(pd.DataFrame([{"lat": lat, "lon": lon}]))
-        else:
-            st.info("Map location unavailable for this suburb.")
 
         # Quick links
         st.link_button(
