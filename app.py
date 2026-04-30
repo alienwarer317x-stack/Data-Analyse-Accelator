@@ -453,21 +453,31 @@ if chosen:
         # Narrative summary
         narrative = chosen.get("Narrative", {})
 
-        st.markdown("#### ✅ Strengths")
-        strengths = narrative.get("strengths", [])
-        if strengths:
-            for s in strengths[:5]:
-                st.markdown(f"- {s}")
-        else:
-            st.write("No strengths captured.")
+        # ====================== ✅ Strengths vs ⚠️ Risks ======================
 
-        st.markdown("#### ⚠️ Risks")
-        risks = narrative.get("risks", [])
-        if risks:
-            for r in risks[:5]:
-                st.markdown(f"- {r}")
-        else:
-            st.write("No risks captured.")
+        strengths = narrative.get("strengths") or []
+        risks = narrative.get("risks") or []
+
+        st.markdown("### ✅ Strengths vs ⚠️ Risks")
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.markdown("#### ✅ Strengths")
+            if strengths:
+                for s in strengths:
+                    st.markdown(f"- {s}")
+            else:
+                st.write("—")
+
+        with col2:
+            st.markdown("#### ⚠️ Risks")
+            if risks:
+                for r in risks:
+                    st.markdown(f"- {r}")
+            else:
+                st.write("No material risks identified.")
+
 
         # Optional: path-to-buy
         path = narrative.get("path_to_buy", [])
