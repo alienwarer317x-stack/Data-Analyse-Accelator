@@ -1,4 +1,6 @@
 from ingestion.scoring import score_row
+from engine import evaluate_suburb, evaluate_buy_gates, calculate_confidence
+from ingestion.scoring import score_row
 from engine import evaluate_suburb
 from ingestion.sqm_adapter import build_row_from_sqm
 from ingestion.dsr_adapter import build_row_from_dsr
