@@ -2,6 +2,7 @@ from ingestion.fundamentals_adapter import get_structural_fundamentals
 from ingestion.fundamentals_adapter import evaluate_structural_gates
 from ingestion.abs_adapter import get_abs_structural
 
+
 # ============================================================
 # PROPERTY INVESTMENT ACCELERATOR — LOGIC ENGINE
 # AUTHORITATIVE DECISION + NARRATIVE ENGINE
@@ -405,27 +406,30 @@ def evaluate_suburb(row):
 
     # This will be replaced later by real ABS / planning / job data
 
-    abs_data = get_abs_structural(row.get("Suburb"))
+    
+abs_data = get_abs_structural(row.get("Suburb"))
 
-    structural_data = {
-        # ---- Supply & others stay placeholders for now ----
-        "approval_ratio_18m": 5.5,
-        "developable_land": "LOW",
-    
-        # ✅ REAL ABS DATA
-        "prof_occ_delta_2016": abs_data.get("prof_occ_delta_2016"),
-        "prof_occ_delta_2021": abs_data.get("prof_occ_delta_2021"),
-        "income_delta_2016": abs_data.get("income_delta_2016"),
-        "income_delta_2021": abs_data.get("income_delta_2021"),
-    
-        # ---- still placeholders (next steps) ----
-        "rent_stress_ok_pct": 67,
-        "mortgage_stress_ok_pct": 78,
-        "job_count": 620,
-        "travel_time_mins": 42,
-        "employment_diversity": "HIGH",
-        "affordability_band": "GOOD",
-    }
+structural_data = {
+    # ---- SUPPLY (placeholder for now) ----
+    "approval_ratio_18m": 5.5,
+    "developable_land": "LOW",
+
+    # ✅ ABS income & occupation
+    "prof_occ_delta_2016": abs_data.get("prof_occ_delta_2016"),
+    "prof_occ_delta_2021": abs_data.get("prof_occ_delta_2021"),
+    "income_delta_2016": abs_data.get("income_delta_2016"),
+    "income_delta_2021": abs_data.get("income_delta_2021"),
+
+    # ✅ ABS housing stress (NEW — real data)
+    "rent_stress_ok_pct": abs_data.get("rent_stress_ok_pct"),
+    "mortgage_stress_ok_pct": abs_data.get("mortgage_stress_ok_pct"),
+
+    # ---- Still placeholders (next datasets) ----
+    "job_count": 620,
+    "travel_time_mins": 42,
+    "employment_diversity": "HIGH",
+    "affordability_band": "GOOD",
+}
 
     
     structural_stage3 = evaluate_structural_score(structural_data)
