@@ -1,5 +1,6 @@
 from ingestion.fundamentals_adapter import get_structural_fundamentals
 from ingestion.fundamentals_adapter import evaluate_structural_gates
+from engine import evaluate_structural_score
 
 # ============================================================
 # PROPERTY INVESTMENT ACCELERATOR — LOGIC ENGINE
