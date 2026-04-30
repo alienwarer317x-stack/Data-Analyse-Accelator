@@ -386,9 +386,9 @@ def evaluate_suburb(row):
 
     # --- 10-YEAR GROWTH HARD GATE (STAGE 2) ---
     tri_10y = triangulate_10y_growth(
-        sqm_cagr=row.get("sqm_10y_gr_pa"),          # SQM 10y p.a.
-        oth_total_growth=row.get("oth_10y_growth"), # TOTAL %
-        htag_total_growth=row.get("htag_10y_growth")# TOTAL %
+        sqm_cagr=row.get("sqm_10y_gr_pa"),
+        oth_total_growth=row.get("oth_10y_growth"),
+        htag_total_growth=row.get("htag_10y_growth"),
     )
 
     if tri_10y["status"] == "FAIL":
@@ -400,7 +400,7 @@ def evaluate_suburb(row):
         if decision == "BUY":
             decision = "HOLD"
 
-    # --- STRUCTURAL CONFIRMATION (STAGE 3 placeholder) ---
+    # --- STRUCTURAL CONFIRMATION (STAGE 3 PLACEHOLDER) ---
     structural_eval = evaluate_structural_gates(
         get_structural_fundamentals(row.get("Suburb"))
     )
