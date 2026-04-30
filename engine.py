@@ -92,6 +92,9 @@ BUY_GATE_EXPLANATIONS = {
     "36m Growth > 50%": (
     "Triangulated 36‑month price growth exceeds 50%, "
     "indicating an overheated market with elevated pullback risk."),
+    "10yr CAGR Alignment Issue": (
+    "Cross-source 10‑year growth estimates diverge materially, "
+    "indicating potential data inconsistency. Suburb requires review."),
 
 }
 
@@ -178,6 +181,19 @@ def evaluate_growth_gates(growth):
         failed.append("10yr CAGR Too High")
 
     return failed
+# ---------------- 10-YEAR CAGR HELPERS ----------------
+
+def calculate_cagr_from_total(total_growth_pct, years=10):
+    """
+    Convert TOTAL growth (%) into CAGR (%).
+    Excel equivalent: (1 + total_growth)^(1/years) - 1
+    """
+    if total_growth_pct is None:
+        return None
+    try:
+        return ((1 + total_growth_pct / 100) ** (1 / years) - 1) * 100
+    except:
+        return None
 
 # ---------------- 36-MONTH GROWTH (STAGE 2 HARD GATE) ----------------
 
@@ -216,6 +232,62 @@ def triangulate_36m_growth(sqm_36m, htag_36m, typical_36m):
         "typical_36m": typical_36m,
         "avg_36m": round(avg_36m, 2),
         "status": "PASS" if avg_36m < 50 else "FAIL",
+    }
+# ---------------- 10-YEAR GROWTH (STAGE 2 SUSTAINABILITY GATE) ----------------
+
+def triangulate_10y_growth(
+    sqm_cagr,          # already p.a. from SQM
+    oth_total_growth,  # TOTAL % growth (OTH)
+    htag_total_growth  # TOTAL % growth (HTAG)
+):
+    """
+    Triangulate 10-year growth using:
+    - SQM CAGR (as-is)
+    - OTH total -> CAGR
+    - HTAG total -> CAGR
+    """
+
+    oth_cagr = calculate_cagr_from_total(oth_total_growth)
+    htag_cagr = calculate_cagr_from_total(htag_total_growth)
+
+    values = [
+        v for v in [sqm_cagr, oth_cagr, htag_cagr]
+        if isinstance(v, (int, float))
+    ]
+
+    if len(values) < 2:
+        return {
+            "sqm_cagr": sqm_cagr,
+            "oth_cagr": oth_cagr,
+            "htag_cagr": htag_cagr,
+            "total_cagr": None,
+            "alignment_gap": None,
+            "status": "INSUFFICIENT_DATA",
+        }
+
+    total_cagr = sum(values) / len(values)
+
+    # Alignment check: OTH vs Total CAGR
+    alignment_gap = (
+        abs(oth_cagr - total_cagr)
+        if oth_cagr is not None
+        else None
+    )
+
+    if total_cagr > 7:
+        status = "FAIL"
+    elif alignment_gap is not None and alignment_gap > 1:
+        status = "REVIEW"
+    else:
+        status = "PASS"
+
+    return {
+        "sqm_cagr": sqm_cagr,
+        "oth_cagr": oth_cagr,
+        "htag_cagr": htag_cagr,
+        "total_cagr": round(total_cagr, 2),
+        "alignment_gap": round(alignment_gap, 2) if alignment_gap else None,
+        "status": status,
     }
 
 # ---------------- CONFIDENCE ----------------
@@ -314,6 +386,22 @@ def evaluate_suburb(row):
         
     # legacy growth gates (keep, but secondary
     failed += evaluate_growth_gates(growth)
+    
+    # --- 10-YEAR GROWTH HARD GATE (STAGE 2) ---
+tri_10y = triangulate_10y_growth(
+    sqm_cagr=row.get("sqm_10y_gr_pa"),          # SQM 10y p.a. (as-is)
+    oth_total_growth=row.get("oth_10y_growth"), # TOTAL growth %
+    htag_total_growth=row.get("htag_10y_growth")# TOTAL growth %
+)
+
+if tri_10y["status"] == "FAIL":
+    failed.append("10yr CAGR > 7%")
+    decision = "AVOID"
+
+elif tri_10y["status"] == "REVIEW":
+    failed.append("10yr CAGR Alignment Issue")
+    if decision == "BUY":
+        decision = "HOLD"
 
     structural_eval = evaluate_structural_gates(
         get_structural_fundamentals(row.get("Suburb"))
