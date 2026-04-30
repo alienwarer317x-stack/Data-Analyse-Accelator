@@ -1,98 +1,37 @@
-import requests
-from bs4 import BeautifulSoup
+# ingestion/abs_adapter.py
 
+import pandas as pd
 
-# -------------------------------------------------
-# Utility: Safe float parser
-# -------------------------------------------------
-def to_float(val):
+# ------------------------------------------------------------------
+# Load ABS-derived suburb-level metrics from local CSV (no scraping)
+# ------------------------------------------------------------------
+
+ABS_DATA_PATH = "data/abs_structural.csv"
+
+def load_abs_data():
     """
-    Safely converts ABS values like '31.4%' into floats.
-    Returns None on failure.
+    Expected columns:
+    Suburb
+    prof_occ_delta_2016
+    prof_occ_delta_2021
+    income_delta_2016
+    income_delta_2021
     """
-    try:
-        return float(
-            str(val)
-            .replace("%", "")
-            .replace(",", "")
-            .strip()
-        )
-    except Exception:
-        return None
+    return pd.read_csv(ABS_DATA_PATH)
 
 
-# -------------------------------------------------
-# Utility: Safe HTTP fetcher
-# -------------------------------------------------
-def _fetch_abs_page(url):
-    """
-    Fetches an ABS QuickStats page safely.
-    Returns HTML text or None on failure.
-    """
-    try:
-        response = requests.get(
-            url,
-            headers={
-                "User-Agent": "Mozilla/5.0 (compatible; MarketExplorer/1.0)"
-            },
-            timeout=15
-        )
-        if response.status_code != 200:
-            return None
-        return response.text
-    except Exception:
-        return None
+def get_abs_structural(suburb_name):
+    df = load_abs_data()
 
+    row = df[df["Suburb"].str.upper() == suburb_name.upper()]
+    if row.empty:
+        return {}
 
-# -------------------------------------------------
-# ABS QuickStats URL builder
-# -------------------------------------------------
-def _build_quickstats_url(state, suburb):
-    """
-    Builds the ABS QuickStats URL for a suburb.
+    r = row.iloc[0]
 
-    Example:
-      suburb = "Grafton", state = "NSW"
-      -> https://www.abs.gov.au/census/find-census-data/quickstats/2021/GraftonNSW
-    """
-    suburb_code = f"{suburb.replace(' ', '')}{state.upper()}"
-    return (
-        "https://www.abs.gov.au/census/"
-        "find-census-data/quickstats/2021/"
-        f"{suburb_code}"
-    )
-
-
-# -------------------------------------------------
-# Public fetcher: Renters percentage
-# -------------------------------------------------
-def fetch_renters_pct(state, suburb):
-    """
-    Fetches the percentage of households renting from
-    ABS QuickStats (2021 Census).
-
-    Returns:
-      float (e.g. 31.4) or None
-    """
-
-    url = _build_quickstats_url(state, suburb)
-    html = _fetch_abs_page(url)
-    if not html:
-        return None
-
-    soup = BeautifulSoup(html, "html.parser")
-
-    # ABS tables use rows where labels like "Rented" appear
-    rows = soup.find_all("tr")
-
-    for row in rows:
-        cells = row.find_all(["th", "td"])
-        texts = [c.get_text(strip=True) for c in cells]
-
-        # Look explicitly for the "Rented" tenure row
-        if "Rented" in texts:
-            for t in texts:
-                if "%" in t:
-                    return to_float(t)
-
-    return None
+    return {
+        "prof_occ_delta_2016": r.get("prof_occ_delta_2016"),
+        "prof_occ_delta_2021": r.get("prof_occ_delta_2021"),
+        "income_delta_2016": r.get("income_delta_2016"),
+        "income_delta_2021": r.get("income_delta_2021"),
+    }
