@@ -367,7 +367,19 @@ if st.session_state.deep_analysis_results:
     df_avoid = df_view[df_view["Decision"] == "AVOID"]
 
     st.markdown("### 🏆 Top BUY Opportunities")
-    st.dataframe(df_display_buy, use_container_width=True)
+    
+    cols = [
+        "Suburb", "State", "Post code",
+        "Decision",
+        "AVG GR 3yrs (%)",
+        "10y Growth Rate % OTH",
+        "Total CAGR 10yrs (%)",
+        "Demand / Supply Ratio",
+        "Investability Score",
+        "Failed Gates"
+    ]
+
+    st.dataframe(df_display_buy[cols], use_container_width=True)
 
     st.markdown("### ⚠️ AVOID / Watchlist Suburbs")
     st.dataframe(df_avoid, use_container_width=True)
@@ -422,6 +434,8 @@ if chosen:
 
     # ====================== A) SUBURB PROFILE TABS ======================
     tabs = st.tabs(["Overview", "People", "Economy", "Infrastructure", "Risk"])
+
+    
     # ====================== A1 / A2 — OVERVIEW ======================
     with tabs[0]:
         c1, c2, c3, c4 = st.columns(4)
@@ -430,6 +444,36 @@ if chosen:
         c3.metric("Investability Score", chosen["Investability Score"])
         c4.metric("Demand / Supply Ratio", chosen["Demand / Supply Ratio"])
 
+        st.markdown("#### 📈 Growth Summary")
+        
+        g1, g2, g3 = st.columns(3)
+        
+        g1.metric(
+            "AVG GR 3yrs (%)",
+            f"{chosen.get('AVG GR 3yrs (%)', '—')}"
+        )
+        
+        g2.metric(
+            "10y Growth Rate % (OTH)",
+            f"{chosen.get('10y Growth Rate % OTH', '—')}"
+        )
+        
+        g3.metric(
+            "Total CAGR 10yrs (%)",
+            f"{chosen.get('Total CAGR 10yrs (%)', '—')}"
+        )
+
+        # ⚠️ Growth alignment warning (HOLD / Review explanation)
+        if "Alignment Issue" in str(chosen.get("Failed Gates", "")):
+            st.warning(
+                "📊 **Growth data alignment note:**\n\n"
+                "Long‑term growth is within acceptable limits, however estimates from "
+                "different data sources diverge by more than expected. "
+                "This suburb has been flagged for **manual review** to confirm data accuracy "
+                "before proceeding."
+            )
+
+        
         # Extra facts (from discovery data)
         if extra:
             st.markdown("#### 📌 Quick Facts (from discovery data)")
