@@ -401,33 +401,77 @@ def evaluate_suburb(row):
             decision = "HOLD"
 
 # ---------------- STAGE 3 – TEMP STRUCTURAL PLACEHOLDER ---------------- 
-abs_data = get_abs_structural(row.get("Suburb"))
+def evaluate_suburb(row):
+    vacancy = normalise_plain(row.get("Vacancy rate"))
+    stock = normalise_plain(row.get("Percent stock on market"))
+    dom = normalise_plain(row.get("Days on market"))
+    yield_pct = normalise_percent(row.get("Gross rental yield"))
+    renters_pct = normalise_percent(row.get("Percent renters in market"))
+    reliability = normalise_plain(row.get("Statistical reliability"))
 
-structural_data = {
-    # ---- SUPPLY (placeholder for now) ----
-    "approval_ratio_18m": 5.5,
-    "developable_land": "LOW",
+    demand_supply = calculate_demand_supply_ratio(vacancy, stock, dom)
 
-    # ✅ ABS income & occupation
-    "prof_occ_delta_2016": abs_data.get("prof_occ_delta_2016"),
-    "prof_occ_delta_2021": abs_data.get("prof_occ_delta_2021"),
-    "income_delta_2016": abs_data.get("income_delta_2016"),
-    "income_delta_2021": abs_data.get("income_delta_2021"),
+    factors = {
+        "renters_pct": renters_pct,
+        "vacancy_pct": vacancy,
+        "demand_supply_ratio": demand_supply,
+        "stock_on_market_pct": stock,
+        "gross_rental_yield": yield_pct,
+        "statistical_reliability": reliability,
+    }
 
-    # ✅ ABS housing stress (NEW — real data)
-    "rent_stress_ok_pct": abs_data.get("rent_stress_ok_pct"),
-    "mortgage_stress_ok_pct": abs_data.get("mortgage_stress_ok_pct"),
+    decision, failed = evaluate_buy_gates(factors)
+    growth = consolidate_growth_metrics(row)
 
-    # ---- Still placeholders (next datasets) ----
-    "job_count": 620,
-    "travel_time_mins": 42,
-    "employment_diversity": "HIGH",
-    "affordability_band": "GOOD",
-}
+    # ---------- STAGE 2: 36 MONTH ----------
+    tri_36m = triangulate_36m_growth(
+        sqm_36m=row.get("sqm_36m_growth_pct"),
+        htag_36m=row.get("htag_36m_growth_pct"),
+        typical_36m=row.get("typical_36m_growth_pct"),
+    )
 
-    
+    if tri_36m["status"] == "FAIL":
+        failed.append("36m Growth > 50%")
+        decision = "AVOID"
+
+    # ---------- STAGE 2: 10 YEAR ----------
+    tri_10y = triangulate_10y_growth(
+        sqm_cagr=row.get("sqm_10y_gr_pa"),
+        oth_total_growth=row.get("oth_10y_growth"),
+        htag_total_growth=row.get("htag_10y_growth"),
+    )
+
+    if tri_10y["status"] == "FAIL":
+        failed.append("10yr CAGR > 7%")
+        decision = "AVOID"
+
+    elif tri_10y["status"] == "REVIEW":
+        failed.append("10yr CAGR Alignment Issue")
+        if decision == "BUY":
+            decision = "HOLD"
+
+    # ---------- STAGE 3: ABS STRUCTURAL ----------
+    abs_data = get_abs_structural(row.get("Suburb"))
+
+    structural_data = {
+        "approval_ratio_18m": 5.5,
+        "developable_land": "LOW",
+
+        "prof_occ_delta_2016": abs_data.get("prof_occ_delta_2016"),
+        "prof_occ_delta_2021": abs_data.get("prof_occ_delta_2021"),
+        "income_delta_2016": abs_data.get("income_delta_2016"),
+        "income_delta_2021": abs_data.get("income_delta_2021"),
+        "rent_stress_ok_pct": abs_data.get("rent_stress_ok_pct"),
+        "mortgage_stress_ok_pct": abs_data.get("mortgage_stress_ok_pct"),
+
+        "job_count": 620,
+        "travel_time_mins": 42,
+        "employment_diversity": "HIGH",
+        "affordability_band": "GOOD",
+    }
+
     structural_stage3 = evaluate_structural_score(structural_data)
-      
+
     confidence_score, confidence_band = calculate_confidence(decision)
     investability_score = calculate_investability_score(
         confidence_score,
@@ -451,11 +495,7 @@ structural_data = {
         "Demand / Supply Ratio": demand_supply,
         "Failed Gates": failed if failed else ["None"],
         "Structural Status": structural_stage3["Final"],
-        
-        
-    # ✅ NEW
         "Structural Stage 3": structural_stage3,
-
         "Narrative": narrative,
     }
 # ============================================================
