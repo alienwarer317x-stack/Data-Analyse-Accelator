@@ -336,7 +336,6 @@ if not isinstance(results_list, list) or not results_list:
     return
 
 res_map = {r["Suburb"]: r for r in results_list}
-
 chosen = res_map.get(selected_profile_suburb)
 
 # Pull extra suburb facts from the current discovery dataframe (Stage 1)
