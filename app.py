@@ -271,6 +271,9 @@ if current_selected_suburbs:
                 "State": r.get("State"),
                 "Suburb": r.get("Suburb")
             })
+            
+            narr = analysis.get("Narrative", {})
+            growth_info = analysis.get("Growth", {})
 
             results.append({
                 "Suburb": r["Suburb"],
@@ -281,8 +284,14 @@ if current_selected_suburbs:
                 "Confidence Score": analysis["Confidence Score"],
                 "Investability Score": analysis["Investability Score"],
                 "Demand / Supply Ratio": analysis["Demand / Supply Ratio"],
+                
+            # ✅ NEW — Growth visibility
+                "AVG GR 3yrs (%)": growth_info.get("avg_36m"),
+                "10y Growth Rate % OTH": growth_info.get("oth_cagr"),
+                "Total CAGR 10yrs (%)": growth_info.get("total_cagr"),
+
                 "Failed Gates": ", ".join(analysis["Failed Gates"]),
-                "Narrative": analysis["Narrative"],
+                "Narrative": narr,
             })
 
         # ✅ STORE RESULTS — ENGINE RUNS ONCE
