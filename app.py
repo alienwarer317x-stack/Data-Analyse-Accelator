@@ -5,6 +5,7 @@ from ingestion.dsr_adapter import build_row_from_dsr
 from ingestion.suburb_lookup import lookup_suburb
 from ingestion.people_adapter import get_people_profile
 from ingestion.fundamentals_adapter import get_structural_fundamentals
+from ingestion.infrastructure_adapter import get_infrastructure_profile
 import streamlit as st
 import pandas as pd
 from io import BytesIO
@@ -527,10 +528,26 @@ if st.session_state.deep_analysis_results:
         else:
             st.info("Commute time data unavailable")
 
-    st.markdown("**Core Amenities (placeholders)**")
-    st.write("- Schools: Data to be added")
-    st.write("- Healthcare: Data to be added")
-    st.write("- Retail & services: Data to be added")
+   # ---------- Physical Infrastructure (Schools & Healthcare) ----------
+
+lat = lookup.get("Latitude")
+lon = lookup.get("Longitude")
+
+infra = get_infrastructure_profile(lat, lon)
+
+st.markdown("**Schools (within 10 km)**")
+if infra["schools"]:
+    for s in infra["schools"]:
+        st.markdown(f"- {s['name']} ({s['type']}) — {s['distance_km']} km")
+else:
+    st.info("No schools found within 10 km.")
+
+st.markdown("**Hospitals & Medical Centres (within 10 km)**")
+if infra["hospitals"]:
+    for h in infra["hospitals"]:
+        st.markdown(f"- {h['name']} — {h['distance_km']} km")
+else:
+    st.info("No hospitals found within 10 km.")
 
     # ====================== OPTIONAL — RISK ======================
     with tabs[4]:
