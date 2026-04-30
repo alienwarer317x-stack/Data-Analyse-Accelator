@@ -468,11 +468,7 @@ if chosen:
         
         st.table(df_summary)
         
-        # Failed gates
-        st.markdown("#### ❌ Failed Gates (from authoritative engine)")
-        failed_text = chosen.get("Failed Gates", "")
-        st.write(failed_text if failed_text else "None")
-
+       
         # Narrative summary
         narrative = chosen.get("Narrative", {})
 
@@ -485,10 +481,6 @@ if chosen:
                 st.markdown(f"- {p}")
 
         # ====================== 🧾 Sources & Confidence ======================
-        st.markdown("#### 🧾 Sources & Confidence")
-        st.write("**Decision Confidence:**", chosen.get("Confidence"))
-        st.write("**Confidence Score:**", chosen.get("Confidence Score"))
-
         st.markdown("**Data Sources Used**")
         st.markdown("- ABS Census (Population & Demographics)")
         st.markdown("- SQM Research (Market metrics)")
