@@ -1,6 +1,6 @@
 from ingestion.fundamentals_adapter import get_structural_fundamentals
 from ingestion.fundamentals_adapter import evaluate_structural_gates
-
+from ingestion.abs_adapter import get_abs_structural
 
 # ============================================================
 # PROPERTY INVESTMENT ACCELERATOR — LOGIC ENGINE
@@ -405,13 +405,20 @@ def evaluate_suburb(row):
 
     # This will be replaced later by real ABS / planning / job data
 
+    abs_data = get_abs_structural(row.get("Suburb"))
+
     structural_data = {
-        "approval_ratio_18m": 5.5,          # %
+        # ---- Supply & others stay placeholders for now ----
+        "approval_ratio_18m": 5.5,
         "developable_land": "LOW",
-        "prof_occ_delta_2016": 1.2,
-        "prof_occ_delta_2021": 2.1,
-        "income_delta_2016": 0.8,
-        "income_delta_2021": 1.5,
+    
+        # ✅ REAL ABS DATA
+        "prof_occ_delta_2016": abs_data.get("prof_occ_delta_2016"),
+        "prof_occ_delta_2021": abs_data.get("prof_occ_delta_2021"),
+        "income_delta_2016": abs_data.get("income_delta_2016"),
+        "income_delta_2021": abs_data.get("income_delta_2021"),
+    
+        # ---- still placeholders (next steps) ----
         "rent_stress_ok_pct": 67,
         "mortgage_stress_ok_pct": 78,
         "job_count": 620,
@@ -419,6 +426,7 @@ def evaluate_suburb(row):
         "employment_diversity": "HIGH",
         "affordability_band": "GOOD",
     }
+
     
     structural_stage3 = evaluate_structural_score(structural_data)
       
