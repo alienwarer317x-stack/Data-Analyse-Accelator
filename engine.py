@@ -379,30 +379,28 @@ def evaluate_suburb(row):
         htag_36m=row.get("htag_36m_growth_pct"),
         typical_36m=row.get("typical_36m_growth_pct"),
     )
-    
+
     if tri_36m["status"] == "FAIL":
         failed.append("36m Growth > 50%")
         decision = "AVOID"
-        
-    # legacy growth gates (keep, but secondary
-    failed += evaluate_growth_gates(growth)
-    
+
     # --- 10-YEAR GROWTH HARD GATE (STAGE 2) ---
-tri_10y = triangulate_10y_growth(
-    sqm_cagr=row.get("sqm_10y_gr_pa"),          # SQM 10y p.a. (as-is)
-    oth_total_growth=row.get("oth_10y_growth"), # TOTAL growth %
-    htag_total_growth=row.get("htag_10y_growth")# TOTAL growth %
-)
+    tri_10y = triangulate_10y_growth(
+        sqm_cagr=row.get("sqm_10y_gr_pa"),          # SQM 10y p.a.
+        oth_total_growth=row.get("oth_10y_growth"), # TOTAL %
+        htag_total_growth=row.get("htag_10y_growth")# TOTAL %
+    )
 
-if tri_10y["status"] == "FAIL":
-    failed.append("10yr CAGR > 7%")
-    decision = "AVOID"
+    if tri_10y["status"] == "FAIL":
+        failed.append("10yr CAGR > 7%")
+        decision = "AVOID"
 
-elif tri_10y["status"] == "REVIEW":
-    failed.append("10yr CAGR Alignment Issue")
-    if decision == "BUY":
-        decision = "HOLD"
+    elif tri_10y["status"] == "REVIEW":
+        failed.append("10yr CAGR Alignment Issue")
+        if decision == "BUY":
+            decision = "HOLD"
 
+    # --- STRUCTURAL CONFIRMATION (STAGE 3 placeholder) ---
     structural_eval = evaluate_structural_gates(
         get_structural_fundamentals(row.get("Suburb"))
     )
