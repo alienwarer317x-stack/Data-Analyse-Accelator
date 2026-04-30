@@ -89,6 +89,10 @@ BUY_GATE_EXPLANATIONS = {
     "Reliability": "Statistical reliability is insufficient for a high‑conviction decision.",
     "36m Growth Too High": "Recent growth appears unsustainably strong, elevating pullback risk.",
     "10yr CAGR Too High": "Long‑term growth rate exceeds sustainability benchmarks.",
+    "36m Growth > 50%": (
+    "Triangulated 36‑month price growth exceeds 50%, "
+    "indicating an overheated market with elevated pullback risk."),
+
 }
 
 
@@ -175,6 +179,44 @@ def evaluate_growth_gates(growth):
 
     return failed
 
+# ---------------- 36-MONTH GROWTH (STAGE 2 HARD GATE) ----------------
+
+def triangulate_36m_growth(sqm_36m, htag_36m, typical_36m):
+    """
+    Triangulate 36-month growth from SQM, HTAG, and Typical Value sources.
+
+    Returns:
+        {
+            "sqm_36m": float or None,
+            "htag_36m": float or None,
+            "typical_36m": float or None,
+            "avg_36m": float or None,
+            "status": "PASS" | "FAIL" | "INSUFFICIENT_DATA"
+        }
+    """
+    values = [
+        v for v in [sqm_36m, htag_36m, typical_36m]
+        if isinstance(v, (int, float))
+    ]
+
+    if len(values) < 2:
+        return {
+            "sqm_36m": sqm_36m,
+            "htag_36m": htag_36m,
+            "typical_36m": typical_36m,
+            "avg_36m": None,
+            "status": "INSUFFICIENT_DATA",
+        }
+
+    avg_36m = sum(values) / len(values)
+
+    return {
+        "sqm_36m": sqm_36m,
+        "htag_36m": htag_36m,
+        "typical_36m": typical_36m,
+        "avg_36m": round(avg_36m, 2),
+        "status": "PASS" if avg_36m < 50 else "FAIL",
+    }
 
 # ---------------- CONFIDENCE ----------------
 
@@ -258,6 +300,18 @@ def evaluate_suburb(row):
     decision, failed = evaluate_buy_gates(factors)
 
     growth = consolidate_growth_metrics(row)
+    
+# --- 36-MONTH GROWTH HARD GATE (STAGE 2) ---
+    tri_36m = triangulate_36m_growth(
+        sqm_36m=row.get("sqm_36m_growth_pct"),
+        htag_36m=row.get("htag_36m_growth_pct"),
+        typical_36m=row.get("typical_36m_growth_pct"),
+    )
+    
+    if tri_36m["status"] == "FAIL":
+        failed.append("36m Growth > 50%")
+
+    # legacy growth gates (keep, but secondary
     failed += evaluate_growth_gates(growth)
 
     structural_eval = evaluate_structural_gates(
