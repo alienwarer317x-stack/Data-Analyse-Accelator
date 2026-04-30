@@ -402,7 +402,8 @@ def evaluate_suburb(row):
             decision = "HOLD"
 
    # ---------------- STAGE 3 – TEMP STRUCTURAL PLACEHOLDER ----------------
-# This will be replaced later by real ABS / planning / job data
+
+    # This will be replaced later by real ABS / planning / job data
 
     structural_data = {
         "approval_ratio_18m": 5.5,          # %
@@ -421,17 +422,6 @@ def evaluate_suburb(row):
     
     structural_stage3 = evaluate_structural_score(structural_data)
       
-        
-    # --- STRUCTURAL CONFIRMATION (STAGE 3 PLACEHOLDER) ---
-
-        # structural_eval = evaluate_structural_gates(OID"
-        ``
-        #     get_structural_fundamentals(row.get("Suburb"))
-        # )
-        
-        # if structural_eval["status"] == "FAIL"
-
-
     confidence_score, confidence_band = calculate_confidence(decision)
     investability_score = calculate_investability_score(
         confidence_score,
@@ -454,7 +444,9 @@ def evaluate_suburb(row):
         "Investability Score": investability_score,
         "Demand / Supply Ratio": demand_supply,
         "Failed Gates": failed if failed else ["None"],
-        "Structural Status": structural_eval["status"],
+        "Structural Status": structural_stage3["Final"],
+        "Structural Stage 3": structural_stage3,
+
         
     # ✅ NEW
         "Structural Stage 3": structural_stage3,
