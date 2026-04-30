@@ -1,5 +1,3 @@
-from ingestion.fundamentals_adapter import get_structural_fundamentals
-from ingestion.fundamentals_adapter import evaluate_structural_gates
 from ingestion.abs_adapter import get_abs_structural
 
 
@@ -402,11 +400,7 @@ def evaluate_suburb(row):
         if decision == "BUY":
             decision = "HOLD"
 
-   # ---------------- STAGE 3 – TEMP STRUCTURAL PLACEHOLDER ----------------
-
-    # This will be replaced later by real ABS / planning / job data
-
-    
+# ---------------- STAGE 3 – TEMP STRUCTURAL PLACEHOLDER ---------------- 
 abs_data = get_abs_structural(row.get("Suburb"))
 
 structural_data = {
@@ -457,8 +451,7 @@ structural_data = {
         "Demand / Supply Ratio": demand_supply,
         "Failed Gates": failed if failed else ["None"],
         "Structural Status": structural_stage3["Final"],
-        "Structural Stage 3": structural_stage3,
-
+        
         
     # ✅ NEW
         "Structural Stage 3": structural_stage3,
