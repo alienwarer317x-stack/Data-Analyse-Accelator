@@ -30,6 +30,33 @@ CONFIDENCE_EXPLANATION = {
         "reduce overall conviction at this time."
     ),
 }
+
+# ====================== NARRATIVE FORMATTER (TABLE VIEW) ======================
+
+def format_narrative_for_table(narrative):
+    """
+    Convert narrative dict into a short, readable string
+    for table display only.
+    """
+    if not isinstance(narrative, dict):
+        return ""
+
+    headline = narrative.get("headline", "")
+    strengths = narrative.get("strengths", [])
+
+    summary = ""
+    if strengths:
+        summary = strengths[0]
+
+    if headline and summary:
+        return f"{headline} — {summary}"
+    elif headline:
+        return headline
+    elif summary:
+        return summary
+    else:
+        return ""
+
 # ====================== SESSION STATE ======================
 if "dsr_discovery_df" not in st.session_state:
     st.session_state.dsr_discovery_df = None
@@ -262,6 +289,14 @@ if st.session_state.deep_analysis_results:
     st.subheader("✅ Deep Analysis Results")
 
     df_results = pd.DataFrame(st.session_state.deep_analysis_results)
+    
+    # Clean narrative for table display
+    if "Narrative" in df_results.columns:
+
+    df_results["Narrative"] = df_results["Narrative"].apply(
+        format_narrative_for_table
+    )
+    
     df_results = df_results.sort_values(
         by=["Investability Score", "Demand / Supply Ratio"],
         ascending=[False, False]
