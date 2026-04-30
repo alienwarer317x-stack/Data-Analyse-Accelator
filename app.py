@@ -444,7 +444,30 @@ if chosen:
             "🔎 Search AreaSearch for this suburb",
             f"https://www.google.com/search?q=site:areasearch.com.au+suburb+{chosen['Suburb']}"
         )
-
+        st.markdown("### 📋 Investment Summary")
+        
+        summary_rows = [
+            ["Decision", chosen.get("Decision")],
+            ["Confidence", chosen.get("Confidence")],
+            ["Confidence Score", chosen.get("Confidence Score")],
+            ["Failed Gates", chosen.get("Failed Gates") or "None"],
+        ]
+        
+        narrative = chosen.get("Narrative", {})
+        strengths = narrative.get("strengths") or []
+        risks = narrative.get("risks") or []
+        
+        summary_rows.append(
+            ["Key Strength", strengths[0] if strengths else "—"]
+        )
+        summary_rows.append(
+            ["Key Risk", risks[0] if risks else "No material risks identified"]
+        )
+        
+        df_summary = pd.DataFrame(summary_rows, columns=["Item", "Summary"])
+        
+        st.table(df_summary)
+        
         # Failed gates
         st.markdown("#### ❌ Failed Gates (from authoritative engine)")
         failed_text = chosen.get("Failed Gates", "")
