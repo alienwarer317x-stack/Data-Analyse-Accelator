@@ -421,7 +421,7 @@ def evaluate_suburb(row):
     decision, failed = evaluate_buy_gates(factors)
     growth = consolidate_growth_metrics(row)
 
-    # ---------- STAGE 2: 36 MONTH ----------
+    # --- STAGE 2: 36 MONTH ---
     tri_36m = triangulate_36m_growth(
         sqm_36m=row.get("sqm_36m_growth_pct"),
         htag_36m=row.get("htag_36m_growth_pct"),
@@ -432,7 +432,7 @@ def evaluate_suburb(row):
         failed.append("36m Growth > 50%")
         decision = "AVOID"
 
-    # ---------- STAGE 2: 10 YEAR ----------
+    # --- STAGE 2: 10 YEAR ---
     tri_10y = triangulate_10y_growth(
         sqm_cagr=row.get("sqm_10y_gr_pa"),
         oth_total_growth=row.get("oth_10y_growth"),
@@ -442,13 +442,12 @@ def evaluate_suburb(row):
     if tri_10y["status"] == "FAIL":
         failed.append("10yr CAGR > 7%")
         decision = "AVOID"
-
     elif tri_10y["status"] == "REVIEW":
         failed.append("10yr CAGR Alignment Issue")
         if decision == "BUY":
             decision = "HOLD"
 
-    # ---------- STAGE 3: ABS STRUCTURAL ----------
+    # --- STAGE 3: ABS STRUCTURAL ---
     abs_data = get_abs_structural(row.get("Suburb"))
 
     structural_data = {
