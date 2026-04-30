@@ -1,6 +1,5 @@
 from ingestion.abs_adapter import get_abs_structural
 
-
 # ============================================================
 # PROPERTY INVESTMENT ACCELERATOR — LOGIC ENGINE
 # AUTHORITATIVE DECISION + NARRATIVE ENGINE
