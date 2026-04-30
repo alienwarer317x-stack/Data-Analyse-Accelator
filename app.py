@@ -333,7 +333,7 @@ results_list = st.session_state.get("deep_analysis_results")
 
 if not isinstance(results_list, list) or not results_list:
     st.info("Run Deep Analysis to view suburb details.")
-    return
+        return
 
 res_map = {r["Suburb"]: r for r in results_list}
 chosen = res_map.get(selected_profile_suburb)
