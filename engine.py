@@ -401,6 +401,27 @@ def evaluate_suburb(row):
         if decision == "BUY":
             decision = "HOLD"
 
+   # ---------------- STAGE 3 – TEMP STRUCTURAL PLACEHOLDER ----------------
+# This will be replaced later by real ABS / planning / job data
+
+    structural_data = {
+        "approval_ratio_18m": 5.5,          # %
+        "developable_land": "LOW",
+        "prof_occ_delta_2016": 1.2,
+        "prof_occ_delta_2021": 2.1,
+        "income_delta_2016": 0.8,
+        "income_delta_2021": 1.5,
+        "rent_stress_ok_pct": 67,
+        "mortgage_stress_ok_pct": 78,
+        "job_count": 620,
+        "travel_time_mins": 42,
+        "employment_diversity": "HIGH",
+        "affordability_band": "GOOD",
+    }
+    
+    structural_stage3 = evaluate_structural_score(structural_data)
+      
+        
     # --- STRUCTURAL CONFIRMATION (STAGE 3 PLACEHOLDER) ---
     structural_eval = evaluate_structural_gates(
         get_structural_fundamentals(row.get("Suburb"))
@@ -432,6 +453,10 @@ def evaluate_suburb(row):
         "Demand / Supply Ratio": demand_supply,
         "Failed Gates": failed if failed else ["None"],
         "Structural Status": structural_eval["status"],
+        
+    # ✅ NEW
+        "Structural Stage 3": structural_stage3,
+
         "Narrative": narrative,
     }
 # ============================================================
