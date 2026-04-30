@@ -1,3 +1,3 @@
-Suburb,prof_occ_delta_2016,prof_occ_delta_2021,income_delta_2016,income_delta_2021
-CASINO,1.2,2.1,0.8,1.5
-HOWLONG,0.3,0.9,-0.2,0.4
+Suburb,prof_occ_delta_2016,prof_occ_delta_2021,income_delta_2016,income_delta_2021,rent_stress_ok_pct,mortgage_stress_ok_pct
+CASINO,1.2,2.1,0.8,1.5,67,78
+HOWLONG,0.3,0.9,-0.2,0.4,59,72
