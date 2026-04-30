@@ -328,7 +328,15 @@ if st.session_state.deep_analysis_results:
     )
 
     # Build a quick lookup from stored deep analysis results
-res_map = {r["Suburb"]: r for r in st.session_state.deep_analysis_results}
+
+results_list = st.session_state.get("deep_analysis_results")
+
+if not isinstance(results_list, list) or not results_list:
+    st.info("Run Deep Analysis to view suburb details.")
+    return
+
+res_map = {r["Suburb"]: r for r in results_list}
+
 chosen = res_map.get(selected_profile_suburb)
 
 # Pull extra suburb facts from the current discovery dataframe (Stage 1)
