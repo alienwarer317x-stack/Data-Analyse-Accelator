@@ -1,6 +1,6 @@
 from ingestion.fundamentals_adapter import get_structural_fundamentals
 from ingestion.fundamentals_adapter import evaluate_structural_gates
-from engine import evaluate_structural_score
+
 
 # ============================================================
 # PROPERTY INVESTMENT ACCELERATOR — LOGIC ENGINE
@@ -423,17 +423,19 @@ def evaluate_suburb(row):
       
         
     # --- STRUCTURAL CONFIRMATION (STAGE 3 PLACEHOLDER) ---
-    structural_eval = evaluate_structural_gates(
-        get_structural_fundamentals(row.get("Suburb"))
-    )
 
-    if structural_eval["status"] == "FAIL":
-        decision = "AVOID"
+        # structural_eval = evaluate_structural_gates(OID"
+        ``
+        #     get_structural_fundamentals(row.get("Suburb"))
+        # )
+        
+        # if structural_eval["status"] == "FAIL"
+
 
     confidence_score, confidence_band = calculate_confidence(decision)
     investability_score = calculate_investability_score(
         confidence_score,
-        structural_eval["status"]
+        structural_stage3["Final"]
     )
 
     narrative = build_authoritative_narrative(
@@ -441,7 +443,7 @@ def evaluate_suburb(row):
         dsr=demand_supply,
         growth=growth,
         failed_gates=failed,
-        structural_eval=structural_eval,
+        structural_eval={"status": structural_stage3["Final"]},
         factors=factors,
     )
 
