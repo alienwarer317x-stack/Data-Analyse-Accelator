@@ -366,42 +366,70 @@ if st.session_state.deep_analysis_results:
             step=0.5,
             key="risk_discount"
         )
+      # ========== APPLY ALL RISK APPETITE FILTERS ==========
     df_view = df_results.copy()
+
+    # 1. Renters % filter
     if "Renters %" in df_view.columns:
         df_view = df_view[
             (df_view["Renters %"] >= risk_renters_range[0]) &
             (df_view["Renters %"] <= risk_renters_range[1])
         ]
+
+    # 2. Maximum Days on Market
     if "Days on Market" in df_view.columns:
         df_view = df_view[df_view["Days on Market"] <= risk_max_dom]
+
+    # 3. Vacancy Rate
+    if "Vacancy rate" in df_view.columns or "Vacancy rate%" in df_view.columns:
+        vacancy_col = "Vacancy rate" if "Vacancy rate" in df_view.columns else "Vacancy rate%"
+        df_view = df_view[df_view[vacancy_col] <= risk_vacancy]
+
+    # 4. Stock on Market
+    if "Stock on market" in df_view.columns or "Stock on market%" in df_view.columns or "Percent stock on market" in df_view.columns:
+        stock_col = next((col for col in ["Stock on market", "Stock on market%", "Percent stock on market"] if col in df_view.columns), None)
+        if stock_col:
+            df_view = df_view[df_view[stock_col] <= risk_stock_on_market]
+
+    # 5. Gross Rental Yield (Minimum)
+    if "Gross rental yield" in df_view.columns or "Gross rental yield%" in df_view.columns or "Yield %" in df_view.columns:
+        yield_col = next((col for col in ["Gross rental yield", "Gross rental yield%", "Yield %"] if col in df_view.columns), None)
+        if yield_col:
+            df_view = df_view[df_view[yield_col] >= risk_yield]
+
+    # 6. Avg Vendor Discounting (Maximum)
+    if "Avg vendor discounting" in df_view.columns or "Avg vendor discounting%" in df_view.columns or "Vendor discounting" in df_view.columns:
+        discount_col = next((col for col in ["Avg vendor discounting", "Avg vendor discounting%", "Vendor discounting"] if col in df_view.columns), None)
+        if discount_col:
+            df_view = df_view[df_view[discount_col] <= risk_discount]
+
+    # ========== DECISION LENS ==========
     st.markdown("### ⚖️ Decision Lens")
     view_mode = st.radio(
         "View mode",
-        options=["Strict (Engine BUY only)", "Expanded (Risk‑tolerant view)"],
+        options=["Strict (Engine BUY only)", "Expanded (Risk-tolerant view)"],
         horizontal=True
     )
+
+    # Apply View Mode Logic
     if view_mode == "Strict (Engine BUY only)":
-        df_display_buy = df_results[df_results["Decision"] == "BUY"]
+        df_display = df_view[df_view["Decision"] == "BUY"]          # Strict = Only BUYs
     else:
-        df_display_buy = df_view[df_view["Decision"] == "BUY"]
-       
-    df_buy = df_view[df_view["Decision"] == "BUY"]
-    df_avoid = df_view[df_view["Decision"] == "AVOID"]
+        df_display = df_view.copy()                                  # Expanded = Show all that passed risk filters
+
+    # Display Tables
     st.markdown("### 🏆 Top BUY Opportunities")
-   
     cols = [
-        "Suburb", "State", "Post code",
-        "Decision",
-        "AVG GR 3yrs (%)",
-        "10y Growth Rate % OTH",
-        "Total CAGR 10yrs (%)",
-        "Demand / Supply Ratio",
-        "Investability Score",
-        "Failed Gates"
+        "Suburb", "State", "Post code", "Decision", "Confidence",
+        "Investability Score", "Demand / Supply Ratio",
+        "AVG GR 3yrs (%)", "10y Growth Rate % OTH", "Total CAGR 10yrs (%)", "Failed Gates"
     ]
-    st.dataframe(df_display_buy[cols], use_container_width=True)
+    available_cols = [c for c in cols if c in df_display.columns]
+    st.dataframe(df_display[available_cols], use_container_width=True)
+
     st.markdown("### ⚠️ AVOID / Watchlist Suburbs")
-    st.dataframe(df_avoid, use_container_width=True)
+    avoid_df = df_display[df_display["Decision"] != "BUY"]
+    st.dataframe(avoid_df[available_cols], use_container_width=True)
 
    # ====================== SUBURB PROFILE (SELECT ONE) ======================
     st.subheader("🏘️ Suburb Profile")
