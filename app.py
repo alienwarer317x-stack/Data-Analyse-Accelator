@@ -297,28 +297,75 @@ if st.session_state.deep_analysis_results:
         by=["Investability Score", "Demand / Supply Ratio"],
         ascending=[False, False]
     )
-    # ---------- RISK APPETITE FILTERS ----------
+        # ---------- RISK APPETITE FILTERS ----------
     st.markdown("### ⚖️ Risk Appetite Filters (Post‑Analysis View)")
     st.caption(
         "These filters do NOT change BUY / AVOID decisions. "
         "They only adjust which analysed suburbs are shown."
     )
-    risk_renters_range = st.slider(
-        "Renters proportion you are willing to consider (%)",
-        min_value=10,
-        max_value=60,
-        value=st.session_state.risk_renters_range,
-        step=1,
-        key="risk_renters_range"
-    )
-    risk_max_dom = st.slider(
-        "Maximum Days on Market you are willing to consider",
-        min_value=20,
-        max_value=120,
-        value=st.session_state.risk_max_dom,
-        step=5,
-        key="risk_max_dom"
-    )
+
+    # Existing filters
+    col_r1, col_r2 = st.columns(2)
+    with col_r1:
+        risk_renters_range = st.slider(
+            "Renters proportion you are willing to consider (%)",
+            min_value=10,
+            max_value=60,
+            value=st.session_state.risk_renters_range,
+            step=1,
+            key="risk_renters_range"
+        )
+    with col_r2:
+        risk_max_dom = st.slider(
+            "Maximum Days on Market you are willing to consider",
+            min_value=0,
+            max_value=120,
+            value=st.session_state.risk_max_dom,
+            step=5,
+            key="risk_max_dom"
+        )
+
+    # === NEW FILTERS ===
+    col_f1, col_f2 = st.columns(2)
+
+    with col_f1:
+        risk_vacancy = st.slider(
+            "Maximum Vacancy Rate (%) you are willing to consider",
+            min_value=0.0,
+            max_value=5.0,
+            value=2.0,
+            step=0.1,
+            key="risk_vacancy"
+        )
+
+        risk_stock_on_market = st.slider(
+            "Maximum Stock on Market (%) you are willing to consider",
+            min_value=0.0,
+            max_value=3.0,
+            value=1.3,
+            step=0.1,
+            key="risk_stock_on_market"
+        )
+
+    with col_f2:
+        risk_yield = st.slider(
+            "Minimum Gross Rental Yield (%) you are willing to consider",
+            min_value=2.0,
+            max_value=10.0,
+            value=4.0,
+            step=0.1,
+            key="risk_yield"
+        )
+
+        # Avg Vendor Discounting % (assuming column name is "Avg vendor discounting" or similar)
+        risk_discount = st.slider(
+            "Maximum Avg Vendor Discounting (%) you are willing to consider",
+            min_value=0.0,
+            max_value=15.0,
+            value=8.0,
+            step=0.5,
+            key="risk_discount"
+        )
     df_view = df_results.copy()
     if "Renters %" in df_view.columns:
         df_view = df_view[
