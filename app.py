@@ -431,29 +431,36 @@ if st.session_state.deep_analysis_results:
     avoid_df = df_display[df_display["Decision"] != "BUY"]
     st.dataframe(avoid_df[available_cols], use_container_width=True)
 
-   # ====================== SUBURB PROFILE (SELECT ONE) ======================
+    # ====================== SUBURB PROFILE (SELECT ONE) ======================
     st.subheader("🏘️ Suburb Profile")
-    # Prefer selecting from BUY list; fallback to all viewed suburbs
-    if not df_buy.empty:
-        profile_options = df_buy["Suburb"].tolist()
-        st.caption("Showing suburbs from 🏆 Top BUY Opportunities (based on your Risk Appetite view).")
+
+    # Use the currently displayed dataframe for profile selection
+    if not df_display.empty:
+        profile_options = df_display["Suburb"].tolist()
+        if view_mode == "Strict (Engine BUY only)":
+            st.caption("Showing suburbs from 🏆 Top BUY Opportunities.")
+        else:
+            st.caption("Showing suburbs based on your Risk Appetite filters (Expanded view).")
     else:
-        profile_options = df_view["Suburb"].tolist()
-        st.caption("No BUY suburbs in the current view — showing all analysed suburbs instead.")
+        profile_options = []
+        st.caption("No suburbs match your current filters.")
+
     selected_profile_suburb = st.selectbox(
         "Select a suburb to view details",
         options=profile_options,
         key="selected_profile_suburb"
     )
+
     # Build a quick lookup from stored deep analysis results
     results_list = st.session_state.get("deep_analysis_results")
     if not isinstance(results_list, list) or not results_list:
         st.info("Run Deep Analysis to view suburb details.")
         st.stop()
+
     res_map = {r["Suburb"]: r for r in results_list}
     chosen = res_map.get(selected_profile_suburb)
 
-    # Pull extra suburb facts from the current discovery dataframe (Stage 1)
+    # Pull extra suburb facts from the current discovery dataframe
     extra = None
     try:
         match = current_discovery_df[current_discovery_df["Suburb"] == selected_profile_suburb]
@@ -462,7 +469,7 @@ if st.session_state.deep_analysis_results:
     except Exception:
         extra = None
 
-    # Enrich suburb data using lookup table (postcode, LGA, centroid, etc.)
+    # Enrich suburb data using lookup table
     lookup = lookup_suburb(
         selected_profile_suburb,
         extra.get("State") if extra else None
