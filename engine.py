@@ -325,19 +325,19 @@ def evaluate_suburb(row):
     abs_data = get_abs_structural(row.get("Suburb"))
 
     structural_data = {
-        "approval_ratio_18m": 5.5,
-        "developable_land": "LOW",
-        "prof_occ_delta_2016": abs_data.get("prof_occ_delta_2016"),
-        "prof_occ_delta_2021": abs_data.get("prof_occ_delta_2021"),
-        "income_delta_2016": abs_data.get("income_delta_2016"),
-        "income_delta_2021": abs_data.get("income_delta_2021"),
-        "rent_stress_ok_pct": abs_data.get("rent_stress_ok_pct"),
-        "mortgage_stress_ok_pct": abs_data.get("mortgage_stress_ok_pct"),
-        "job_count": 620,
-        "travel_time_mins": 42,
-        "employment_diversity": "HIGH",
-        "affordability_band": "GOOD",
-    }
+    "approval_ratio_18m": (row.get("approvals_18m", 0) / row.get("total_dwellings", 1)) * 100,
+    "developable_land": row.get("land_supply_status", "MODERATE"), # From your data ingestion
+    "prof_occ_delta_2016": abs_data.get("prof_occ_delta_2016"),
+    "prof_occ_delta_2021": abs_data.get("prof_occ_delta_2021"),
+    "income_delta_2016": abs_data.get("income_delta_2016"),
+    "income_delta_2021": abs_data.get("income_delta_2021"),
+    "rent_stress_ok_pct": abs_data.get("rent_stress_ok_pct"),
+    "mortgage_stress_ok_pct": abs_data.get("mortgage_stress_ok_pct"),
+    "job_count": row.get("infrastructure_job_count", 0),
+    "travel_time_mins": row.get("cbd_travel_time", 99),
+    "employment_diversity": row.get("industry_diversity_score", "MEDIUM"),
+    "affordability_band": row.get("affordability_index", "STRETCHED"),
+}
 
     structural_stage3 = evaluate_structural_score(structural_data)
 
