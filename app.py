@@ -700,15 +700,13 @@ if st.session_state.deep_analysis_results:
 
 # ====================== STAGE 3 — ASSET SELECTION ======================
 
-# 1. First, check if a suburb has NOT been selected yet
-if chosen is None:
-    st.info("Please select a suburb in the sidebar or search tool to begin the Asset Analysis.")
-
-# 2. If a suburb HAS been selected, show the analysis
-else:
+# This checks if 'chosen' exists and actually has data in it
+if chosen is not None:
     st.divider()
     st.markdown("## 🔍 Stage 3 — Individual Property Analysis")
-    st.subheader(f"Evaluate an Asset in {chosen['Suburb']}")
+    
+    # We only run this if 'chosen' is a real piece of data
+    st.subheader(f"Evaluate an Asset in {chosen.get('Suburb', 'Selected Suburb')}")
     st.info("Agent Tip: A great suburb can still have bad houses. Use this checklist to ensure the specific property is an 'A-Grade' asset.")
 
     with st.expander("📝 Physical Property Checklist", expanded=False):
@@ -722,7 +720,7 @@ else:
             renovated = st.selectbox("Internal Condition", ["Original", "Neat", "Renovated", "New / Brand New"])
 
         if st.button("Generate Asset Verdict"):
-            # Call the logic from property_evaluator.py
+            # This calls your logic from the other file
             asset_result = score_property_asset({
                 "land_size": land,
                 "frontage_metres": frontage,
@@ -732,20 +730,17 @@ else:
             
             st.divider()
             
-            # Display Grade and Score
             val_col1, val_col2 = st.columns(2)
             val_col1.metric("Asset Grade", asset_result["grade"])
             val_col2.metric("Asset Score", f"{asset_result['asset_score']}/100")
 
-            # Final Advice Narrative
             if asset_result["asset_score"] >= 80:
-                st.success(f"**Verdict:** This is a premium asset for {chosen['Suburb']}. Proceed to Stage 4: Due Diligence.")
+                st.success(f"**Verdict:** This is a premium asset. Proceed to Stage 4.")
             elif asset_result["asset_score"] >= 65:
-                st.warning(f"**Verdict:** This is a secondary (B-Grade) asset. Ensure you are not overpaying.")
+                st.warning(f"**Verdict:** This is a secondary (B-Grade) asset. Don't overpay.")
             else:
-                st.error(f"**Verdict:** Avoid. This asset has structural compromises that will hinder long-term performance.")
+                st.error(f"**Verdict:** Avoid. This asset has structural compromises.")
 
-            # Pros and Cons
             c_pos, c_neg = st.columns(2)
             with c_pos:
                 st.write("**Investment Boosters**")
@@ -757,3 +752,7 @@ else:
     # ====================== STAGE 4 — ROADMAP ======================
     st.markdown("## 🛠️ Stage 4 — Next Steps")
     st.write("Ready to proceed? [Download Buyer's Agent Checklist PDF]")
+
+else:
+    # If no suburb is selected, we show this helpful message instead of an error
+    st.info("👈 Please select or search for a suburb in the sidebar to begin the Asset Analysis.")
