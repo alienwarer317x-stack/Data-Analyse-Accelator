@@ -63,6 +63,11 @@ def evaluate_buy_gates(factors):
         failed.append("Stock on Market")
     if factors["gross_rental_yield"] is None or factors["gross_rental_yield"] <= 4:
         failed.append("Gross Yield")
+    
+    # NEW: Rental Growth Gate
+    if factors["rental_growth_pct"] is not None and factors["rental_growth_pct"] <= 5:
+        failed.append("Rental Growth < 5%")
+        
     if factors["statistical_reliability"] is not None and factors["statistical_reliability"] <= 51:
         failed.append("Reliability")
     return ("BUY" if not failed else "AVOID"), failed
@@ -83,6 +88,7 @@ BUY_GATE_EXPLANATIONS = {
     "10yr CAGR Alignment Issue": (
         "Cross-source 10‑year growth estimates diverge materially, "
         "indicating potential data inconsistency. Suburb requires review."),
+    "Rental Growth < 5%": "12-month rental growth is below the 5% threshold required for high-performance markets.",
 }
 
 
@@ -203,7 +209,7 @@ def triangulate_10y_growth(sqm_cagr, oth_total_growth, htag_total_growth):
 
     if total_cagr > 7:
         status = "FAIL"
-    elif alignment_gap is not None and alignment_gap > 1:
+    elif alignment_gap is not None and alignment_gap > 2.5:
         status = "REVIEW"
     else:
         status = "PASS"
@@ -291,6 +297,7 @@ def evaluate_suburb(row):
         "demand_supply_ratio": demand_supply,
         "stock_on_market_pct": stock,
         "gross_rental_yield": yield_pct,
+        "rental_growth_pct": normalise_percent(row.get("12 month rental growth rate%")), # NEW
         "statistical_reliability": reliability,
     }
 
@@ -356,14 +363,29 @@ def evaluate_suburb(row):
     )
 
     return {
+      
         "Decision": decision,
-        "Confidence": confidence_band,
         "Confidence Score": confidence_score,
+        "Confidence": confidence_band,
         "Investability Score": investability_score,
-        "Demand / Supply Ratio": demand_supply,
-        "Failed Gates": failed if failed else ["None"],
+        
+        # 36 Month Growth Columns
+        "36 month GR % SQM": tri_36m["sqm_36m"],
+        "36 month GR % Htag": tri_36m["htag_36m"],
+        "36 Month vs Typical": tri_36m["typical_36m"],
+        "AVG GR 3yrs (Triangulated)": tri_36m["avg_36m"], # The Red Column
+        
+        # 10 Year Growth Columns
+        "Total CAGR Growth 10yrs": tri_10y["total_cagr"], # The Red Column
+        "CAGR SQM": tri_10y["sqm_cagr"],
+        "CAGR OTH": tri_10y["oth_cagr"],
+        "CAGR Htag": tri_10y["htag_cagr"],
+        
+        # Rental Column
+        "12 month rental growth rate %": factors["rental_growth_pct"],
+        
         "Structural Status": structural_stage3["Final"],
-        "Structural Stage 3": structural_stage3,
+        "Failed Gates": failed if failed else ["None"],
         "Narrative": narrative,
     }
 
