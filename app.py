@@ -699,9 +699,13 @@ if st.session_state.deep_analysis_results:
 
 
 # ====================== STAGE 3 — ASSET SELECTION ======================
-if chosen == None:
-    st.write("Please select a suburb to begin.")
-    # Everything below this line must be indented (shifted right) to stay inside the 'if'
+
+# 1. First, check if a suburb has NOT been selected yet
+if chosen is None:
+    st.info("Please select a suburb in the sidebar or search tool to begin the Asset Analysis.")
+
+# 2. If a suburb HAS been selected, show the analysis
+else:
     st.divider()
     st.markdown("## 🔍 Stage 3 — Individual Property Analysis")
     st.subheader(f"Evaluate an Asset in {chosen['Suburb']}")
@@ -750,7 +754,6 @@ if chosen == None:
                 st.write("**Risk Factors**")
                 for n in asset_result["negatives"]: st.write(f"❌ {n}")
 
-# ====================== STAGE 4 — ROADMAP ======================
-if chosen:
-     st.markdown("## 🛠️ Stage 4 — Next Steps")
-     st.write("Ready to proceed? [Download Buyer's Agent Checklist PDF]")
+    # ====================== STAGE 4 — ROADMAP ======================
+    st.markdown("## 🛠️ Stage 4 — Next Steps")
+    st.write("Ready to proceed? [Download Buyer's Agent Checklist PDF]")
