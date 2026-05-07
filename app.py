@@ -699,7 +699,8 @@ if st.session_state.deep_analysis_results:
 
 
 # ====================== STAGE 3 — ASSET SELECTION ======================
-if chosen: # Only show if a suburb profile is currently active
+if 'chosen' not in st.session_state:
+    st.session_state.chosen = None
     st.divider()
     st.markdown("## 🔍 Stage 3 — Individual Property Analysis")
     st.subheader(f"Evaluate an Asset in {chosen['Suburb']}")
