@@ -113,11 +113,11 @@ if st.button("Reset"):
 
 
 # ====================== NORMALISATION HELPERS ======================
-def normalise_plain(val):
-    if pd.isna(val):
-        return None
+def normalise_days(val):
+    if val is None: return None
     try:
-        return float(str(val).replace("%", "").strip())
+        # Extract numbers from strings like "35days"
+        return float(''.join(filter(str.isdigit, str(val))))
     except:
         return None
 
@@ -703,7 +703,10 @@ if 'chosen' not in st.session_state:
     st.session_state.chosen = None
     st.divider()
     st.markdown("## 🔍 Stage 3 — Individual Property Analysis")
+    if chosen and 'Suburb' in chosen:
     st.subheader(f"Evaluate an Asset in {chosen['Suburb']}")
+else:
+    st.info("Please select a suburb from the sidebar to continue.")
     st.info("Agent Tip: A great suburb can still have bad houses. Use this checklist to ensure the specific property is an 'A-Grade' asset.")
 
     with st.expander("📝 Physical Property Checklist", expanded=False):
