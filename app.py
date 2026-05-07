@@ -699,7 +699,8 @@ if st.session_state.deep_analysis_results:
 
 
 # ====================== STAGE 3 — ASSET SELECTION ======================
-if chosen: None # Only show if a suburb profile is currently active
+if chosen: 
+    # Everything below this line must be indented (shifted right) to stay inside the 'if'
     st.divider()
     st.markdown("## 🔍 Stage 3 — Individual Property Analysis")
     st.subheader(f"Evaluate an Asset in {chosen['Suburb']}")
@@ -749,6 +750,6 @@ if chosen: None # Only show if a suburb profile is currently active
                 for n in asset_result["negatives"]: st.write(f"❌ {n}")
 
 # ====================== STAGE 4 — ROADMAP ======================
-if chosen and 'asset_result' in locals():
+if chosen:
      st.markdown("## 🛠️ Stage 4 — Next Steps")
      st.write("Ready to proceed? [Download Buyer's Agent Checklist PDF]")
