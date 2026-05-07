@@ -701,12 +701,12 @@ if st.session_state.deep_analysis_results:
 # ====================== STAGE 3 — ASSET SELECTION ======================
 if 'chosen' not in st.session_state:
     st.session_state.chosen = None
-    st.divider()
-    st.markdown("## 🔍 Stage 3 — Individual Property Analysis")
-    if chosen and 'Suburb' in chosen:
+
+st.divider()
+st.markdown("## 🔍 Stage 3 — Individual Property Analysis")
+
+if chosen and 'Suburb' in chosen:
     st.subheader(f"Evaluate an Asset in {chosen['Suburb']}")
-else:
-    st.info("Please select a suburb from the sidebar to continue.")
     st.info("Agent Tip: A great suburb can still have bad houses. Use this checklist to ensure the specific property is an 'A-Grade' asset.")
 
     with st.expander("📝 Physical Property Checklist", expanded=False):
@@ -751,8 +751,15 @@ else:
             with c_neg:
                 st.write("**Risk Factors**")
                 for n in asset_result["negatives"]: st.write(f"❌ {n}")
+            
+            # Store result in session state for Stage 4 access
+            st.session_state.asset_evaluated = True
+
+else:
+    st.info("Please select a suburb from the sidebar to continue.")
 
 # ====================== STAGE 4 — ROADMAP ======================
-if chosen and 'asset_result' in locals():
+# Checks if a suburb is chosen AND if the user has clicked the evaluation button
+if chosen and st.session_state.get('asset_evaluated'):
      st.markdown("## 🛠️ Stage 4 — Next Steps")
      st.write("Ready to proceed? [Download Buyer's Agent Checklist PDF]")
