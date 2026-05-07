@@ -366,7 +366,6 @@ def evaluate_suburb(row):
       
         "Decision": decision,
         "Confidence Score": confidence_score,
-        "Confidence": confidence_band,
         "Investability Score": investability_score,
         
         # 36 Month Growth Columns
