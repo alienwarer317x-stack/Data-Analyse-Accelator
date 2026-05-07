@@ -699,7 +699,7 @@ if st.session_state.deep_analysis_results:
 
 
 # ====================== STAGE 3 — ASSET SELECTION ======================
-if chosen: 
+if chosen = None
     # Everything below this line must be indented (shifted right) to stay inside the 'if'
     st.divider()
     st.markdown("## 🔍 Stage 3 — Individual Property Analysis")
