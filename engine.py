@@ -134,6 +134,12 @@ def evaluate_buy_gates(factors):
 
     return ("BUY" if not failed else "AVOID"), failed
 
+    # New Rental Gate
+    if rental_growth is not None and rental_growth <= 5:
+        failed.append("Rental Growth < 5%")
+        
+    return ("BUY" if not failed else "AVOID"), failed
+
 
 
 
