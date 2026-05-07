@@ -365,8 +365,10 @@ def evaluate_suburb(row):
     return {
       
         "Decision": decision,
+        "Confidence": confidence_band,
         "Confidence Score": confidence_score,
         "Investability Score": investability_score,
+        "Demand / Supply Ratio": demand_supply,
         
         # 36 Month Growth Columns
         "36 month GR % SQM": tri_36m["sqm_36m"],
@@ -384,6 +386,7 @@ def evaluate_suburb(row):
         "12 month rental growth rate %": factors["rental_growth_pct"],
         
         "Structural Status": structural_stage3["Final"],
+        "Structural Stage 3": structural_stage3,
         "Failed Gates": failed if failed else ["None"],
         "Narrative": narrative,
     }
