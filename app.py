@@ -946,6 +946,60 @@ if st.session_state.deep_analysis_results:
 
         st.markdown(f"### {chosen['Suburb']}")
 
+        # ====================== DEBUG / AUDIT PANEL ======================
+    with st.expander("🛠️ Engine Audit / Debug (Read‑only)", expanded=False):
+        st.caption(
+            "This panel shows the raw outputs used by the authoritative engine. "
+            "Values here explain *why* a decision was reached but do not affect it."
+        )
+
+        # --- Decision Summary ---
+        st.markdown("### ✅ Decision Outcome")
+        st.write(f"**Decision:** {chosen.get('Decision')}")
+        st.write(f"**Confidence:** {chosen.get('Confidence')} ({chosen.get('Confidence Score')})")
+        st.write(f"**Investability Score:** {chosen.get('Investability Score')}")
+
+        # --- Failed Gates ---
+        st.markdown("### 🚫 Failed BUY / Growth Gates")
+        failed = chosen.get("Failed Gates", "")
+        if failed and failed != "None":
+            for g in failed.split(","):
+                st.write(f"- {g.strip()}")
+        else:
+            st.write("None")
+
+        # --- Growth ---
+        st.markdown("### 📈 Growth Analysis (Stage 2)")
+        growth = chosen.get("Growth", {})
+        if isinstance(growth, dict):
+            st.json(growth)
+        else:
+            st.write("Growth data unavailable")
+
+        # --- Factors ---
+        st.markdown("### 📊 Market Factors Used")
+        factors = chosen.get("Factors", {})
+        if isinstance(factors, dict) and factors:
+            for k, v in factors.items():
+                st.write(f"- **{k}**: {v}")
+        else:
+            st.write("No factor data")
+
+        # --- Structural ---
+        st.markdown("### 🧱 Structural Stage‑3 Scoring")
+        structural = chosen.get("Structural Stage 3", {})
+        if structural:
+            st.write(f"**Final Structural Status:** {structural.get('Final')}")
+            st.write(
+                f"Pass: {structural.get('Pass')} | "
+                f"Warn: {structural.get('Warn')} | "
+                f"Fail: {structural.get('Fail')}"
+            )
+            st.markdown("**Detailed Results:**")
+            st.json(structural.get("Details", {}))
+        else:
+            st.write("Structural data unavailable")
+
         # ====================== A) SUBURB PROFILE TABS ======================
 
         tabs = st.tabs(["Overview", "People", "Economy", "Infrastructure", "Risk"])
