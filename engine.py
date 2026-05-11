@@ -575,6 +575,54 @@ def build_authoritative_narrative(decision, dsr, growth, failed_gates, structura
 
 
 # ---------------- AUTHORITATIVE EVALUATION ----------------
+def _validate_engine_output(result):
+    """
+    Hard guard to ensure evaluate_suburb() always returns
+    the minimum required contract for downstream UI and filters.
+    """
+
+    required_top_level = [
+        "Decision",
+        "Confidence",
+        "Confidence Score",
+        "Investability Score",
+        "Demand / Supply Ratio",
+        "Failed Gates",
+        "Narrative",
+        "Factors",
+        "Growth",
+    ]
+
+    missing = [k for k in required_top_level if k not in result]
+    if missing:
+        raise ValueError(
+            f"ENGINE CONTRACT ERROR: evaluate_suburb missing keys: {missing}"
+        )
+
+    # Factor sanity checks
+    required_factors = [
+        "Renters %",
+        "Vacancy rate",
+        "Percent stock on market",
+        "Gross rental yield",
+        "Days on Market",
+    ]
+
+    factor_missing = [
+        k for k in required_factors if k not in result["Factors"]
+    ]
+    if factor_missing:
+        raise ValueError(
+            f"ENGINE CONTRACT ERROR: Missing factor fields: {factor_missing}"
+        )
+
+    # Growth block must exist even if values are None
+    if not isinstance(result["Growth"], dict):
+        raise ValueError("ENGINE CONTRACT ERROR: Growth must be a dict")
+
+    return result
+
+# ---------------- Suburb EVALUATION ----------------
 
 def evaluate_suburb(row):
 
@@ -736,7 +784,7 @@ def evaluate_suburb(row):
 
 
 
-return {
+Output {
         "Decision": decision,
         "Confidence": confidence_band,
         "Confidence Score": confidence_score,
@@ -770,7 +818,7 @@ return {
         "Structural Stage 3": structural_stage3,
         "Narrative": narrative,
     }
-
+    return _validate_engine_output(output)
 
 
 
