@@ -331,8 +331,7 @@ def calculate_confidence(decision):
     score = 85 if decision == "BUY" else 60
 
     return score, ("High" if score >= 75 else "Medium")
-
-
+    
 def calculate_investability_score(confidence_score, structural_status):
     """
     Applies a structural penalty to the confidence score
