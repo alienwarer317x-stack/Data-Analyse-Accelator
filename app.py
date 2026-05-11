@@ -1,27 +1,17 @@
-from ingestion.scoring import score_row
-
-from engine import evaluate_suburb, evaluate_buy_gates, calculate_confidence
+from ingestion.scoring import score_rowfrom ingestion.scoring calculate_confidence
 
 from ingestion.sqm_adapter import build_row_from_sqm
-
 from ingestion.dsr_adapter import build_row_from_dsr
-
 from ingestion.suburb_lookup import lookup_suburb
-
 from ingestion.people_adapter import get_people_profile
-
 from ingestion.fundamentals_adapter import get_structural_fundamentals
-
 from ingestion.infrastructure_adapter import get_infrastructure_profile
-
 from ingestion.property_evaluator import score_property_asset
 
-
 import streamlit as st
-
 import pandas as pd
-
 from io import BytesIO
+
 
 
 
