@@ -497,86 +497,64 @@ if current_discovery_df is not None and not current_discovery_df.empty:
 if current_selected_suburbs:
 
     st.markdown("## 🟥 Stage 2 — Deep Analysis (Authoritative Engine)")
+    
+if st.button("Run Deep Analysis on Selected Suburbs"):
+    results = []
 
-    if st.button("Run Deep Analysis on Selected Suburbs"):
+    for _, r in current_discovery_df.iterrows():
+        if r["Suburb"] not in current_selected_suburbs:
+            continue
 
-        results = []
+        if client_mode == "DSR Upload":
+            row = r["_row"]
+        else:
+            row = build_row_from_sqm(
+                state=r.get("State"),
+                suburb=r.get("Suburb")
+            )
 
-        for _, r in current_discovery_df.iterrows():
+        suburb_key = f"{r.get('State')}::{r.get('Suburb')}"
 
-            if r["Suburb"] not in current_selected_suburbs:
-
-                continue
-
-            if client_mode == "DSR Upload":
-
-                row = r["_row"]
-
-            else:
-
-                row = build_row_from_sqm(
-
-                    state=r.get("State"),
-
-                    suburb=r.get("Suburb")
-
-                )
-
-            suburb_key = f"{r.get('State')}::{r.get('Suburb')}"
-
-if suburb_key in st.session_state.deep_analysis_cache:
-    analysis = st.session_state.deep_analysis_cache[suburb_key]
-else:
-    analysis = evaluate_suburb({
-        **row,
-        "State": r.get("State"),
-        "Suburb": r.get("Suburb")
-    })
-    st.session_state.deep_analysis_cache[suburb_key] = analysis
+        if suburb_key in st.session_state.deep_analysis_cache:
+            analysis = st.session_state.deep_analysis_cache[suburb_key]
+        else:
+            analysis = evaluate_suburb({
+                **row,
+                "State": r.get("State"),
+                "Suburb": r.get("Suburb")
             })
+            st.session_state.deep_analysis_cache[suburb_key] = analysis
 
-           
-
-            narr = analysis.get("Narrative", {})
-
-            growth_info = analysis.get("Growth", {})
-            
-            factors = analysis.get("Factors", {})
-
+        narr = analysis.get("Narrative", {})
+        growth_info = analysis.get("Growth", {})
+        factors = analysis.get("Factors", {})
 
         results.append({
             "Suburb": r["Suburb"],
             "State": r.get("State"),
             "Post code": r.get("Post code"),
-        
-            # --- Authoritative outputs ---
+
             "Decision": analysis["Decision"],
             "Confidence": analysis["Confidence"],
             "Confidence Score": analysis["Confidence Score"],
             "Investability Score": analysis["Investability Score"],
             "Demand / Supply Ratio": analysis["Demand / Supply Ratio"],
-        
-            # --- Growth ---
+
             "AVG GR 3yrs (%)": growth_info.get("avg_36m"),
             "10y Growth Rate % OTH": growth_info.get("oth_cagr"),
             "Total CAGR 10yrs (%)": growth_info.get("total_cagr"),
-        
-            # --- Factors (for risk filters & profile) ---
+
             "Renters %": factors.get("Renters %"),
             "Vacancy rate": factors.get("Vacancy rate"),
             "Percent stock on market": factors.get("Percent stock on market"),
             "Gross rental yield": factors.get("Gross rental yield"),
             "Days on Market": factors.get("Days on Market"),
-        
-            # --- Narrative & diagnostics ---
+
             "Failed Gates": ", ".join(analysis.get("Failed Gates", [])),
             "Narrative": narr,
         })
 
-        # ✅ STORE RESULTS — ENGINE RUNS ONCE
-
-        st.session_state.deep_analysis_results = results
-
+    st.session_state.deep_analysis_results = results
 
 
 
