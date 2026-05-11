@@ -526,40 +526,38 @@ if current_selected_suburbs:
             narr = analysis.get("Narrative", {})
 
             growth_info = analysis.get("Growth", {})
+            
+            factors = analysis.get("Factors", {})
 
-            results.append({
 
-                "Suburb": r["Suburb"],
-
-                "State": r.get("State"),
-
-                "Post code": r.get("Post code"),
-
-                "Decision": analysis["Decision"],
-
-                "Confidence": analysis["Confidence"],
-
-                "Confidence Score": analysis["Confidence Score"],
-
-                "Investability Score": analysis["Investability Score"],
-
-                "Demand / Supply Ratio": analysis["Demand / Supply Ratio"],
-
-               
-
-            # ✅ NEW — Growth visibility
-
-                "AVG GR 3yrs (%)": growth_info.get("avg_36m"),
-
-                "10y Growth Rate % OTH": growth_info.get("oth_cagr"),
-
-                "Total CAGR 10yrs (%)": growth_info.get("total_cagr"),
-
-                "Failed Gates": ", ".join(analysis.get("Failed Gates", [])),
-
-                "Narrative": narr,
-
-            })
+        results.append({
+            "Suburb": r["Suburb"],
+            "State": r.get("State"),
+            "Post code": r.get("Post code"),
+        
+            # --- Authoritative outputs ---
+            "Decision": analysis["Decision"],
+            "Confidence": analysis["Confidence"],
+            "Confidence Score": analysis["Confidence Score"],
+            "Investability Score": analysis["Investability Score"],
+            "Demand / Supply Ratio": analysis["Demand / Supply Ratio"],
+        
+            # --- Growth ---
+            "AVG GR 3yrs (%)": growth_info.get("avg_36m"),
+            "10y Growth Rate % OTH": growth_info.get("oth_cagr"),
+            "Total CAGR 10yrs (%)": growth_info.get("total_cagr"),
+        
+            # --- Factors (for risk filters & profile) ---
+            "Renters %": factors.get("Renters %"),
+            "Vacancy rate": factors.get("Vacancy rate"),
+            "Percent stock on market": factors.get("Percent stock on market"),
+            "Gross rental yield": factors.get("Gross rental yield"),
+            "Days on Market": factors.get("Days on Market"),
+        
+            # --- Narrative & diagnostics ---
+            "Failed Gates": ", ".join(analysis.get("Failed Gates", [])),
+            "Narrative": narr,
+        })
 
         # ✅ STORE RESULTS — ENGINE RUNS ONCE
 
@@ -765,35 +763,22 @@ if st.session_state.deep_analysis_results:
 
     # 3. Vacancy Rate
 
-    if "Vacancy rate" in df_view.columns or "Vacancy rate%" in df_view.columns:
-
-        vacancy_col = "Vacancy rate" if "Vacancy rate" in df_view.columns else "Vacancy rate%"
-
-        df_view = df_view[df_view[vacancy_col] <= risk_vacancy]
+    if "Vacancy rate" in df_view.columns:
+        df_view = df_view[df_view["Vacancy rate"] <= risk_vacancy]
 
 
 
     # 4. Stock on Market
 
-    if "Stock on market" in df_view.columns or "Stock on market%" in df_view.columns or "Percent stock on market" in df_view.columns:
-
-        stock_col = next((col for col in ["Stock on market", "Stock on market%", "Percent stock on market"] if col in df_view.columns), None)
-
-        if stock_col:
-
-            df_view = df_view[df_view[stock_col] <= risk_stock_on_market]
+    if "Percent stock on market" in df_view.columns:
+    df_view = df_view[df_view["Percent stock on market"] <= risk_stock_on_market]
 
 
 
     # 5. Gross Rental Yield (Minimum)
 
-    if "Gross rental yield" in df_view.columns or "Gross rental yield%" in df_view.columns or "Yield %" in df_view.columns:
-
-        yield_col = next((col for col in ["Gross rental yield", "Gross rental yield%", "Yield %"] if col in df_view.columns), None)
-
-        if yield_col:
-
-            df_view = df_view[df_view[yield_col] >= risk_yield]
+    if "Gross rental yield" in df_view.columns:
+        df_view = df_view[df_view["Gross rental yield"] >= risk_yield]
 
 
 
@@ -1203,9 +1188,9 @@ if st.session_state.deep_analysis_results:
 
                 suburb=chosen["Suburb"],
 
-                state=extra.get("State"),
+                state=extra.get("State") if extra else None,
+                postcode=postcode
 
-                postcode=chosen.get("Postcode")
 
             )
 
