@@ -1,5 +1,3 @@
-chosen = None
-
 from ingestion.scoring import score_row
 
 from engine import evaluate_suburb, evaluate_buy_gates, calculate_confidence
