@@ -1,4 +1,6 @@
-from ingestion.scoring import score_rowfrom ingestion.scoring calculate_confidence
+from ingestion.scoring import score_row
+
+from engine import evaluate_suburb, evaluate_buy_gates, calculate_confidence
 
 from ingestion.sqm_adapter import build_row_from_sqm
 from ingestion.dsr_adapter import build_row_from_dsr
@@ -11,8 +13,6 @@ from ingestion.property_evaluator import score_property_asset
 import streamlit as st
 import pandas as pd
 from io import BytesIO
-
-
 
 
 st.set_page_config(page_title="Property Investment Accelerator Matcher", layout="wide")
