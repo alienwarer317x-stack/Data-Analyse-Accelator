@@ -1114,3 +1114,67 @@ def evaluate_structural_score(structural):
         "Details": results
 
     }
+
+def _engine_regression_checks():
+    """
+    Minimal self-tests to ensure core investment logic
+    has not been accidentally broken.
+    """
+
+    # -----------------------------
+    # TEST 1: Growth hard stop (>7% CAGR must FAIL)
+    # -----------------------------
+    tri_10y = triangulate_10y_growth(
+        sqm_cagr=8.0,
+        oth_total_growth=120,   # ~8% CAGR
+        htag_total_growth=110
+    )
+    assert tri_10y["status"] == "FAIL", "REGRESSION: 10y CAGR >7% must FAIL"
+
+    # -----------------------------
+    # TEST 2: 36M growth hard stop (>50% must FAIL)
+    # -----------------------------
+    tri_36m = triangulate_36m_growth(
+        sqm_36m=55,
+        htag_36m=52,
+        typical_36m=48
+    )
+    assert tri_36m["status"] == "FAIL", "REGRESSION: 36m growth >50% must FAIL"
+
+    # -----------------------------
+    # TEST 3: Structural penalty mapping survives
+    # -----------------------------
+    base_confidence = 85
+    score_av = calculate_investability_score(base_confidence, "AVOID")
+    score_wt = calculate_investability_score(base_confidence, "WATCH")
+    score_by = calculate_investability_score(base_confidence, "BUY")
+
+    assert score_by > score_wt > score_av, \
+        "REGRESSION: Structural penalties not applied correctly"
+
+    # -----------------------------
+    # TEST 4: Engine output contract (minimum)
+    # -----------------------------
+    dummy = {
+        "Decision": "BUY",
+        "Confidence": "High",
+        "Confidence Score": 85,
+        "Investability Score": 85,
+        "Demand / Supply Ratio": 70,
+        "Failed Gates": [],
+        "Narrative": {},
+        "Factors": {
+            "Renters %": 30,
+            "Vacancy rate": 1.4,
+            "Percent stock on market": 0.9,
+            "Gross rental yield": 4.6,
+            "Days on Market": 35,
+        },
+        "Growth": {},
+    }
+
+    _validate_engine_output(dummy)
+
+    print("✅ Engine regression checks passed")
+
+    _engine_regression_checks()
