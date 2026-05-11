@@ -677,7 +677,29 @@ def evaluate_suburb(row):
         "Growth Gate 36m": tri_36m["status"],
         "Growth Gate 10yr": tri_10y["status"]
     }
-    
+
+    return {
+    # ✅ Core decision outputs (Stage 2)
+    "Decision": decision,
+    "Confidence": confidence_band,
+    "Confidence Score": confidence_score,
+    "Investability Score": investability_score,
+    "Demand / Supply Ratio": demand_supply,
+
+    # ✅ Growth outputs (Stage 2)
+    "Growth": {
+        "avg_36m": tri_36m.get("avg_36m"),
+        "oth_cagr": tri_10y.get("oth_cagr"),
+        "total_cagr": tri_10y.get("total_cagr"),
+    },
+
+    # ✅ Structural outputs (Stage 3)
+    "Structural Stage 3": stage3,
+
+    # ✅ UI compatibility keys
+    "Failed Gates": failed if failed else [],
+    "Narrative": narrative,
+    }
 
     # ---------------- STAGE 3 – STRUCTURAL SCORING ----------------
 
