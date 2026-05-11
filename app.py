@@ -123,6 +123,9 @@ def format_narrative_for_table(narrative):
 
 # ====================== SESSION STATE ======================
 
+if "deep_analysis_cache" not in st.session_state:
+    st.session_state.deep_analysis_cache = {}
+
 if "dsr_discovery_df" not in st.session_state:
 
     st.session_state.dsr_discovery_df = None
@@ -151,6 +154,14 @@ if "deep_analysis_results" not in st.session_state:
 
     st.session_state.deep_analysis_results = None
 
+if "people_cache" not in st.session_state:
+    st.session_state.people_cache = {}
+
+if "structural_cache" not in st.session_state:
+    st.session_state.structural_cache = {}
+
+if "infrastructure_cache" not in st.session_state:
+    st.session_state.infrastructure_cache = {}
 
 
 
@@ -511,14 +522,17 @@ if current_selected_suburbs:
 
                 )
 
-            analysis = evaluate_suburb({
+            suburb_key = f"{r.get('State')}::{r.get('Suburb')}"
 
-                **row,
-
-                "State": r.get("State"),
-
-                "Suburb": r.get("Suburb")
-
+if suburb_key in st.session_state.deep_analysis_cache:
+    analysis = st.session_state.deep_analysis_cache[suburb_key]
+else:
+    analysis = evaluate_suburb({
+        **row,
+        "State": r.get("State"),
+        "Suburb": r.get("Suburb")
+    })
+    st.session_state.deep_analysis_cache[suburb_key] = analysis
             })
 
            
@@ -822,32 +836,57 @@ if st.session_state.deep_analysis_results:
 
 
 
-    # Display Tables
+# ====================== RESULTS TABLES ======================
 
-    st.markdown("### 🏆 Top BUY Opportunities")
+display_cols = [
+    "Suburb",
+    "State",
+    "Post code",
+    "Confidence",
+    "Investability Score",
+    "Demand / Supply Ratio",
+    "AVG GR 3yrs (%)",
+    "Total CAGR 10yrs (%)",
+    "Failed Gates",
+]
 
-    cols = [
+display_cols = [c for c in display_cols if c in df_display.columns]
 
-        "Suburb", "State", "Post code", "Decision", "Confidence",
+# ---------- BUY TABLE ----------
+buy_df = df_display[df_display["Decision"] == "BUY"]
 
-        "Investability Score", "Demand / Supply Ratio",
+st.markdown("### 🏆 Investment‑Grade Suburbs (BUY)")
 
-        "AVG GR 3yrs (%)", "10y Growth Rate % OTH", "Total CAGR 10yrs (%)", "Failed Gates"
+st.caption(
+    "Suburbs that passed all mandatory investment gates "
+    "and meet long‑term structural criteria."
+)
 
-    ]
+if not buy_df.empty:
+    st.dataframe(
+        buy_df[display_cols],
+        use_container_width=True
+    )
+else:
+    st.info("No suburbs currently meet BUY criteria under this analysis.")
 
-    available_cols = [c for c in cols if c in df_display.columns]
+# ---------- NON‑BUY TABLE ----------
+non_buy_df = df_display[df_display["Decision"] != "BUY"]
 
-    st.dataframe(df_display[available_cols], use_container_width=True)
+st.markdown("### ⚠️ Watchlist & Excluded Suburbs")
 
+st.caption(
+    "These suburbs were reviewed but did not pass all investment criteria. "
+    "They are shown for context only."
+)
 
-
-    st.markdown("### ⚠️ AVOID / Watchlist Suburbs")
-
-    avoid_df = df_display[df_display["Decision"] != "BUY"]
-
-    st.dataframe(avoid_df[available_cols], use_container_width=True)
-
+if not non_buy_df.empty:
+    st.dataframe(
+        non_buy_df[display_cols],
+        use_container_width=True
+    )
+else:
+    st.info("No non‑BUY suburbs to display under current filters.")
 
 
     # ====================== SUBURB PROFILE (SELECT ONE) ======================
@@ -1006,19 +1045,40 @@ if st.session_state.deep_analysis_results:
 
        
 
-        # ====================== A1 / A2 — OVERVIEW ======================
-
-        with tabs[0]:
-
-            c1, c2, c3, c4 = st.columns(4)
-
-            c1.metric("Decision", chosen["Decision"])
-
-            c2.metric("Confidence",chosen.get("Confidence"),help=CONFIDENCE_EXPLANATION.get(chosen.get("Confidence"), ""))
-
-            c3.metric("Investability Score", chosen["Investability Score"])
-
-            c4.metric("Demand / Supply Ratio", chosen["Demand / Supply Ratio"])
+# ====================== INVESTMENT VERDICT ======================
+            decision = chosen["Decision"]
+            
+            if decision == "BUY":
+                st.success("✅ **BUY — Investment grade suburb**")
+            elif decision == "HOLD":
+                st.warning("🟡 **HOLD — Review required**")
+            else:
+                st.error("❌ **AVOID — Does not meet investment criteria**")
+            
+            v1, v2, v3, v4 = st.columns(4)
+            
+            v1.metric(
+                "Decision",
+                decision
+            )
+            
+            v2.metric(
+                "Confidence",
+                chosen.get("Confidence"),
+                help=CONFIDENCE_EXPLANATION.get(chosen.get("Confidence"), "")
+            )
+            
+            v3.metric(
+                "Investability Score",
+                chosen.get("Investability Score"),
+                help="Relative ranking score after structural penalties are applied."
+            )
+            
+            v4.metric(
+                "Demand / Supply Ratio",
+                chosen.get("Demand / Supply Ratio"),
+                help="Higher values indicate stronger demand relative to supply."
+            )
 
             st.markdown("#### 📈 Growth Summary")
 
@@ -1130,69 +1190,48 @@ if st.session_state.deep_analysis_results:
 
            
 
-            summary_rows = [
+# ====================== INVESTMENT NARRATIVE ======================
 
-                ["Decision", chosen.get("Decision")],
+narrative = chosen.get("Narrative", {})
+strengths = narrative.get("strengths", [])
+risks = narrative.get("risks", [])
+failed_gate_explanations = narrative.get("failed_gate_explanations", [])
 
-                ["Confidence", chosen.get("Confidence")],
+st.markdown("### 🧠 Investment Narrative")
 
-                ["Confidence Score", chosen.get("Confidence Score")],
+col_left, col_right = st.columns(2)
 
-                ["Failed Gates", chosen.get("Failed Gates") or "None"],
+# ---------- STRENGTHS ----------
+with col_left:
+    st.markdown("#### ✅ Key Strengths")
+    if strengths:
+        for s in strengths[:5]:
+            st.markdown(f"- {s}")
+    else:
+        st.write("No strong positive signals identified.")
 
-            ]
+# ---------- RISKS / FAILURES ----------
+with col_right:
+    st.markdown("#### ⚠️ Key Risks & Constraints")
 
-           
+    if failed_gate_explanations:
+        st.markdown("**Deal‑breaker or limiting factors:**")
+        for f in failed_gate_explanations[:5]:
+            st.markdown(f"- {f}")
 
-            narrative = chosen.get("Narrative", {})
+    elif risks:
+        for r in risks[:5]:
+            st.markdown(f"- {r}")
 
-            strengths = narrative.get("strengths") or []
+    else:
+        st.write("No material risks identified.")
 
-            risks = narrative.get("risks") or []
-
-           
-
-            summary_rows.append(
-
-                ["Key Strength", strengths[0] if strengths else "—"]
-
-            )
-
-            summary_rows.append(
-
-                ["Key Risk", risks[0] if risks else "No material risks identified"]
-
-            )
-
-           
-
-            df_summary = pd.DataFrame(summary_rows, columns=["Item", "Summary"])
-
-           
-
-            st.table(df_summary)
-
-           
-
-          
-
-            # Narrative summary
-
-            narrative = chosen.get("Narrative", {})
-
-           
-
-            # Optional: path-to-buy
-
-            path = narrative.get("path_to_buy", [])
-
-            if path:
-
-                st.markdown("#### 🔁 What would need to change to become a BUY")
-
-                for p in path[:6]:
-
-                    st.markdown(f"- {p}")
+# ---------- PATH TO BUY ----------
+path = narrative.get("path_to_buy", [])
+if path:
+    st.markdown("#### 🔁 What would need to change for this suburb to become a BUY")
+    for p in path[:6]:
+        st.markdown(f"- {p}")
 
             # ====================== 🧾 Sources & Confidence ======================
 
@@ -1238,14 +1277,17 @@ if st.session_state.deep_analysis_results:
 
             st.markdown("#### 👥 Population & Demographics")
 
-            people = get_people_profile(
+           people_key = f"{chosen['Suburb']}::{extra.get('State') if extra else None}::{postcode}"
 
-                suburb=chosen["Suburb"],
-
-                state=extra.get("State") if extra else None,
-                postcode=postcode
-
-
+if people_key in st.session_state.people_cache:
+    people = st.session_state.people_cache[people_key]
+else:
+    people = get_people_profile(
+        suburb=chosen["Suburb"],
+        state=extra.get("State") if extra else None,
+        postcode=postcode
+    )
+    st.session_state.people_cache[people_key] = people
             )
 
             if not people:
@@ -1280,7 +1322,13 @@ if st.session_state.deep_analysis_results:
 
             st.markdown("#### 🏭 Economy & Employment")
 
+            struct_key = chosen["Suburb"]
+
+        if struct_key in st.session_state.structural_cache:
+            structural = st.session_state.structural_cache[struct_key]
+        else:
             structural = get_structural_fundamentals(chosen["Suburb"])
+            st.session_state.structural_cache[struct_key] = structural
 
             if not structural:
 
@@ -1342,7 +1390,13 @@ if st.session_state.deep_analysis_results:
 
             st.markdown("#### 🚧 Infrastructure & Amenities")
 
+            struct_key = chosen["Suburb"]
+
+        if struct_key in st.session_state.structural_cache:
+            structural = st.session_state.structural_cache[struct_key]
+        else:
             structural = get_structural_fundamentals(chosen["Suburb"])
+            st.session_state.structural_cache[struct_key] = structural
 
             if not structural:
 
@@ -1380,7 +1434,13 @@ if st.session_state.deep_analysis_results:
 
         lon = lookup.get("Longitude")
 
-        infra = get_infrastructure_profile(lat, lon)
+        infra_key = f"{lat}::{lon}"
+
+        if infra_key in st.session_state.infrastructure_cache:
+            infra = st.session_state.infrastructure_cache[infra_key]
+        else:
+            infra = get_infrastructure_profile(lat, lon)
+            st.session_state.infrastructure_cache[infra_key] = infra
 
         st.markdown("**Schools (within 10 km)**")
 
