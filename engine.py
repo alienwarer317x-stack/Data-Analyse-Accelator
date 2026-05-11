@@ -712,28 +712,32 @@ def evaluate_suburb(row):
 
 
 
-    return {
-
+return {
         "Decision": decision,
-
         "Confidence": confidence_band,
-
         "Confidence Score": confidence_score,
-
         "Investability Score": investability_score,
-
         "Demand / Supply Ratio": demand_supply,
 
+        # ✅ Growth outputs (Stage 2 visibility)
+        "Growth": {
+            "sqm_36m": tri_36m.get("sqm_36m"),
+            "htag_36m": tri_36m.get("htag_36m"),
+            "typical_36m": tri_36m.get("typical_36m"),
+            "avg_36m": tri_36m.get("avg_36m"),
+            "sqm_cagr": tri_10y.get("sqm_cagr"),
+            "oth_cagr": tri_10y.get("oth_cagr"),
+            "htag_cagr": tri_10y.get("htag_cagr"),
+            "total_cagr": tri_10y.get("total_cagr"),
+            "alignment_gap": tri_10y.get("alignment_gap"),
+            "status": tri_10y.get("status"),
+        },
+
         "Failed Gates": failed if failed else ["None"],
-
         "Structural Status": structural_stage3["Final"],
-
         "Structural Stage 3": structural_stage3,
-
         "Narrative": narrative,
-
     }
-
 
 
 
