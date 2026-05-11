@@ -134,12 +134,6 @@ def evaluate_buy_gates(factors):
 
     return ("BUY" if not failed else "AVOID"), failed
 
-    # New Rental Gate
-    if rental_growth is not None and rental_growth <= 5:
-        failed.append("Rental Growth < 5%")
-        
-    return ("BUY" if not failed else "AVOID"), failed
-
 
 
 
@@ -648,58 +642,7 @@ def evaluate_suburb(row):
 
             decision = "HOLD"
 
-# 3. ADDING RENTAL GROWTH RATE (Step 2)
-    # We need to calculate the % change in rent over 12 months
-    rent_current = row.get("median_rent_current")
-    rent_12m_ago = row.get("median_rent_12m_ago")
-    rental_growth = None
-    if rent_current and rent_12m_ago:
-        rental_growth = ((rent_current - rent_12m_ago) / rent_12m_ago) * 100
 
-# 4. BUILDING THE FINAL OUTPUT (Matches Image Headings)
-    return {
-        # 36 Month Columns
-        "36 month GR % SQM": tri_36m["sqm_36m"],
-        "36 month GR % Htag": tri_36m["htag_36m"],
-        "36 Month vs Typical": tri_36m["typical_36m"],
-        "AVG GR 3yrs (Triangulated)": tri_36m["avg_36m"], # The Red Column
-        
-        # Rental Column
-        "12 month rental growth rate %": round(rental_growth, 2) if rental_growth else None,
-        
-        # 10 Year Columns
-        "Total CAGR Growth 10yrs": tri_10y["total_cagr"], # The Red Column
-        "CAGR SQM": tri_10y["sqm_cagr"],
-        "CAGR OTH": tri_10y["oth_cagr"],
-        "CAGR Htag": tri_10y["htag_cagr"],
-        
-        # Logic Flags
-        "Growth Gate 36m": tri_36m["status"],
-        "Growth Gate 10yr": tri_10y["status"]
-    }
-
-    return {
-    # ✅ Core decision outputs (Stage 2)
-    "Decision": decision,
-    "Confidence": confidence_band,
-    "Confidence Score": confidence_score,
-    "Investability Score": investability_score,
-    "Demand / Supply Ratio": demand_supply,
-
-    # ✅ Growth outputs (Stage 2)
-    "Growth": {
-        "avg_36m": tri_36m.get("avg_36m"),
-        "oth_cagr": tri_10y.get("oth_cagr"),
-        "total_cagr": tri_10y.get("total_cagr"),
-    },
-
-    # ✅ Structural outputs (Stage 3)
-    "Structural Stage 3": stage3,
-
-    # ✅ UI compatibility keys
-    "Failed Gates": failed if failed else [],
-    "Narrative": narrative,
-    }
 
     # ---------------- STAGE 3 – STRUCTURAL SCORING ----------------
 
