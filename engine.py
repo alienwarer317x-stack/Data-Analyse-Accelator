@@ -670,7 +670,7 @@ def evaluate_suburb(row):
 
     # ---------------- STAGE 3 – STRUCTURAL SCORING ----------------
 
-    abs_data = get_abs_structural(row.get("Suburb"))
+    abs_data = get_abs_structural(row.get("Suburb")) or {}
 
 
 
