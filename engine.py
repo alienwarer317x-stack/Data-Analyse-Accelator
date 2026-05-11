@@ -451,8 +451,32 @@ def calculate_confidence(decision):
 
 
 def calculate_investability_score(confidence_score, structural_status):
+    """
+    Applies a structural penalty to the confidence score
+    without altering BUY / HOLD / AVOID decisions.
 
-    penalty = {"PASS": 0, "WARN": 10, "FAIL": 30}.get(structural_status, 0)
+    Structural status mapping:
+      BUY   → PASS (no penalty)
+      WATCH → WARN (moderate penalty)
+      AVOID → FAIL (heavy penalty)
+    """
+
+    status_map = {
+        "BUY": "PASS",
+        "WATCH": "WARN",
+        "AVOID": "FAIL",
+        "PASS": "PASS",
+        "WARN": "WARN",
+        "FAIL": "FAIL",
+    }
+
+    normalised = status_map.get(structural_status, "PASS")
+
+    penalty = {
+        "PASS": 0,
+        "WARN": 10,
+        "FAIL": 30,
+    }.get(normalised, 0)
 
     return max(0, confidence_score - penalty)
 
