@@ -1,3 +1,17 @@
+# ============================================================
+# ENGINE CONTRACT
+# ============================================================
+
+ENGINE_NAME = "Property Investment Accelerator — Authoritative Engine"
+ENGINE_STAGE = "Stage 2 (Authoritative Suburb Evaluation)"
+ENGINE_VERSION = "v1.0.0"
+
+# Contract notes:
+# - BUY / HOLD / AVOID decisions are authoritative
+# - Risk filters do not alter decisions
+# - Structural scoring affects confidence, not decision
+# - Growth gates override market strength
+
 from ingestion.abs_adapter import get_abs_structural
 
 
@@ -817,6 +831,11 @@ Output {
         "Structural Status": structural_stage3["Final"],
         "Structural Stage 3": structural_stage3,
         "Narrative": narrative,
+
+        # --- Engine metadata ---
+        "Engine Name": ENGINE_NAME,
+        "Engine Stage": ENGINE_STAGE,
+        "Engine Version": ENGINE_VERSION,
     }
     return _validate_engine_output(output)
 
