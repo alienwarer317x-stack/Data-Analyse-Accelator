@@ -654,7 +654,7 @@ def evaluate_suburb(row):
 
     if tri_10y["status"] == "FAIL":
 
-        failed.append("10yr CAGR > 7%")
+        failed.append("10yr CAGR too High")
 
         decision = "AVOID"
 
@@ -756,7 +756,15 @@ return {
             "alignment_gap": tri_10y.get("alignment_gap"),
             "status": tri_10y.get("status"),
         },
-
+        # ✅ Factor visibility (for risk filters & transparency)
+        "Factors": {
+            "Renters %": renters_pct,
+            "Vacancy rate": vacancy,
+            "Percent stock on market": stock,
+            "Gross rental yield": yield_pct,
+            "Days on Market": dom,
+        },
+    
         "Failed Gates": failed if failed else ["None"],
         "Structural Status": structural_stage3["Final"],
         "Structural Stage 3": structural_stage3,
