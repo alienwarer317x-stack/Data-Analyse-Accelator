@@ -480,83 +480,296 @@ if current_selected_suburbs:
 
 
 
-# ====================== RESULTS TABLES ======================
+# ====================== STAGE 2 — RESULTS VIEW ======================
 
 if st.session_state.deep_analysis_results:
+
     st.subheader("✅ Deep Analysis Results")
-    
+
     df_results = pd.DataFrame(st.session_state.deep_analysis_results)
 
+   
+
     # Clean narrative for table display
+
     if "Narrative" in df_results.columns:
+
         df_results["Narrative"] = df_results["Narrative"].apply(
+
             format_narrative_for_table)
 
+   
+
     df_results = df_results.sort_values(
+
         by=["Investability Score", "Demand / Supply Ratio"],
+
         ascending=[False, False]
+
     )
 
-    # === RISK APPETITE FILTERS (existing code) ===
-    # ... (keep your existing sliders for risk_renters_range, risk_max_dom, etc.)
+        # ---------- RISK APPETITE FILTERS ----------
 
-    # ========== APPLY ALL RISK APPETITE FILTERS ==========
+    st.markdown("### ⚖️ Risk Appetite Filters (Post‑Analysis View)")
+
+    st.caption(
+
+        "These filters do NOT change BUY / AVOID decisions. "
+
+        "They only adjust which analysed suburbs are shown."
+
+    )
+
+
+
+    # Existing filters
+
+    col_r1, col_r2 = st.columns(2)
+
+    with col_r1:
+
+        risk_renters_range = st.slider(
+
+            "Renters proportion you are willing to consider (%)",
+
+            min_value=10,
+
+            max_value=60,
+
+            value=st.session_state.risk_renters_range,
+
+            step=1,
+
+            key="risk_renters_range"
+
+        )
+
+    with col_r2:
+
+        risk_max_dom = st.slider(
+
+            "Maximum Days on Market you are willing to consider",
+
+            min_value=0,
+
+            max_value=120,
+
+            value=st.session_state.risk_max_dom,
+
+            step=5,
+
+            key="risk_max_dom"
+
+        )
+
+
+
+    # === NEW FILTERS ===
+
+    col_f1, col_f2 = st.columns(2)
+
+
+
+    with col_f1:
+
+        risk_vacancy = st.slider(
+
+            "Maximum Vacancy Rate (%) you are willing to consider",
+
+            min_value=0.0,
+
+            max_value=5.0,
+
+            value=2.0,
+
+            step=0.1,
+
+            key="risk_vacancy"
+
+        )
+
+
+
+        risk_stock_on_market = st.slider(
+
+            "Maximum Stock on Market (%) you are willing to consider",
+
+            min_value=0.0,
+
+            max_value=3.0,
+
+            value=1.3,
+
+            step=0.1,
+
+            key="risk_stock_on_market"
+
+        )
+
+
+
+    with col_f2:
+
+        risk_yield = st.slider(
+
+            "Minimum Gross Rental Yield (%) you are willing to consider",
+
+            min_value=2.0,
+
+            max_value=10.0,
+
+            value=4.0,
+
+            step=0.1,
+
+            key="risk_yield"
+
+        )
+
+
+
+        # Avg Vendor Discounting % (assuming column name is "Avg vendor discounting" or similar)
+
+        risk_discount = st.slider(
+
+            "Maximum Avg Vendor Discounting (%) you are willing to consider",
+
+            min_value=0.0,
+
+            max_value=15.0,
+
+            value=8.0,
+
+            step=0.5,
+
+            key="risk_discount"
+
+        )
+        
+# ========== APPLY ALL RISK APPETITE FILTERS ==========
+
     df_view = df_results.copy()
 
-    # 1. Renters %
+    # 1. Renters % filter
     if "Renters %" in df_view.columns:
         df_view = df_view[
             (df_view["Renters %"] >= risk_renters_range[0]) &
             (df_view["Renters %"] <= risk_renters_range[1])
         ]
 
-    # 2. Days on Market
+    # 2. Maximum Days on Market
     if "Days on Market" in df_view.columns:
         df_view = df_view[df_view["Days on Market"] <= risk_max_dom]
 
-    # 3. Vacancy, Stock, Yield, etc. (keep your existing filters)
+    # 3. Vacancy Rate
+    if "Vacancy rate" in df_view.columns:
+        df_view = df_view[df_view["Vacancy rate"] <= risk_vacancy]
+
+    # 4. Stock on Market
+    if "Percent stock on market" in df_view.columns:
+        df_view = df_view[
+            df_view["Percent stock on market"] <= risk_stock_on_market
+        ]
+
+    # 5. Gross Rental Yield (Minimum)
+    if "Gross rental yield" in df_view.columns:
+        df_view = df_view[df_view["Gross rental yield"] >= risk_yield]
+
+    # 6. Avg Vendor Discounting (Maximum)
+    if (
+        "Avg vendor discounting" in df_view.columns
+        or "Avg vendor discounting%" in df_view.columns
+        or "Vendor discounting" in df_view.columns
+    ):
+        discount_col = next(
+            (
+                col
+                for col in [
+                    "Avg vendor discounting",
+                    "Avg vendor discounting%",
+                    "Vendor discounting",
+                ]
+                if col in df_view.columns
+            ),
+            None,
+        )
+
+        if discount_col:
+            df_view = df_view[df_view[discount_col] <= risk_discount]
+
+
 
     # ========== DECISION LENS ==========
+
+    st.markdown("### ⚖️ Decision Lens")
+
     view_mode = st.radio(
+
         "View mode",
+
         options=["Strict (Engine BUY only)", "Expanded (Risk-tolerant view)"],
+
         horizontal=True
+
     )
 
+
+
+    # Apply View Mode Logic
+
     if view_mode == "Strict (Engine BUY only)":
-        df_display = df_view[df_view["Decision"] == "BUY"]
+
+        df_display = df_view[df_view["Decision"] == "BUY"]          # Strict = Only BUYs
+
     else:
-        df_display = df_view.copy()
 
-    # ====================== NOW SAFE TO DEFINE display_cols ======================
-    display_cols = [
-        "Suburb", "State", "Post code", "Confidence", "Investability Score",
-        "Demand / Supply Ratio", "AVG GR 3yrs (%)", "Total CAGR 10yrs (%)",
-        "Failed Gates"
-    ]
-    display_cols = [c for c in display_cols if c in df_display.columns]
+        df_display = df_view.copy()                                  # Expanded = Show all that passed risk filters
 
-    # ---------- BUY TABLE ----------
-    buy_df = df_display[df_display["Decision"] == "BUY"]
 
-    st.markdown("### 🏆 Investment‑Grade Suburbs (BUY)")
-    if not buy_df.empty:
-        st.dataframe(buy_df[display_cols], use_container_width=True)
-    else:
-        st.info("No suburbs currently meet BUY criteria under this analysis.")
 
-    # ---------- NON‑BUY TABLE ----------
-    non_buy_df = df_display[df_display["Decision"] != "BUY"]
+# ====================== RESULTS TABLES ======================
 
-    st.markdown("### ⚠️ Watchlist & Excluded Suburbs")
-    if not non_buy_df.empty:
-        st.dataframe(non_buy_df[display_cols], use_container_width=True)
-    else:
-        st.info("No non‑BUY suburbs to display under current filters.")
+display_cols = [
+    "Suburb",
+    "State",
+    "Post code",
+    "Confidence",
+    "Investability Score",
+    "Demand / Supply Ratio",
+    "AVG GR 3yrs (%)",
+    "Total CAGR 10yrs (%)",
+    "Failed Gates",
+]
 
+display_cols = [c for c in display_cols if c in df_display.columns]
+
+# ---------- BUY TABLE ----------
+buy_df = df_display[df_display["Decision"] == "BUY"]
+
+st.markdown("### 🏆 Investment‑Grade Suburbs (BUY)")
+st.caption(
+    "Suburbs that passed all mandatory investment gates "
+    "and meet long‑term structural criteria."
+)
+
+if not buy_df.empty:
+    st.dataframe(buy_df[display_cols], use_container_width=True)
 else:
-    # This prevents the error when no analysis has run yet
-    df_display = pd.DataFrame()
+    st.info("No suburbs currently meet BUY criteria under this analysis.")
+
+# ---------- NON‑BUY TABLE ----------
+non_buy_df = df_display[df_display["Decision"] != "BUY"]
+
+st.markdown("### ⚠️ Watchlist & Excluded Suburbs")
+st.caption(
+    "These suburbs were reviewed but did not pass all investment criteria. "
+    "They are shown for context only."
+)
+
+if not non_buy_df.empty:
+    st.dataframe(non_buy_df[display_cols], use_container_width=True)
+else:
+    st.info("No non‑BUY suburbs to display under current filters.")
 
 
 # ====================== SUBURB PROFILE (SELECT ONE) ======================
@@ -606,7 +819,6 @@ lookup = lookup_suburb(
     extra.get("State") if extra else None
 )
 postcode = lookup.get("Postcode")
-
 # ====================== SUBURB PROFILE ======================
 
 if chosen:
