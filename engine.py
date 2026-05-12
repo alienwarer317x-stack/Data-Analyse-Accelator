@@ -512,7 +512,7 @@ def evaluate_suburb(row):
 
 # ---------------- STAGE 3 – STRUCTURAL SCORING ----------------
 
-abs_data = get_abs_structural(row.get("Suburb")) or {}
+structural_data = get_structural_fundamentals(row.get("Suburb")) or {}
 
 structural_data = {
     "approval_ratio_18m": 5.5,
@@ -596,111 +596,72 @@ return _validate_engine_output(output)
 # ============================================================
 
 def evaluate_structural_score(structural):
-
-    """
-
-    Evaluates suburb-level structural durability using Stage 3 rules.
-
-    """
+    """Evaluates suburb-level structural durability using Stage 3 rules."""
 
     results = {}
-
     pass_count = 0
-
     warn_count = 0
-
     fail_count = 0
-
     critical_fail = False
 
-
-
     def score(label, outcome, critical=False):
-
         nonlocal pass_count, warn_count, fail_count, critical_fail
-
         results[label] = outcome
-
         if outcome == "PASS":
-
             pass_count += 1
-
         elif outcome == "WARN":
-
             warn_count += 1
-
         elif outcome == "FAIL":
-
             fail_count += 1
-
             if critical:
-
                 critical_fail = True
 
-# ---------- SUPPLY ----------
-
+    # ---------- SUPPLY ----------
     ratio = structural.get("approval_ratio_18m")
-
     if ratio is not None:
-
         if ratio < 6:
             score("18m Approvals Ratio", "PASS", critical=True)
-
         elif ratio <= 8:
             score("18m Approvals Ratio", "WARN", critical=True)
-
         else:
             score("18m Approvals Ratio", "FAIL", critical=True)
 
-
     land = structural.get("developable_land")
-
     if land == "LOW":
         score("Developable Land", "PASS", critical=True)
-
     elif land == "MODERATE":
         score("Developable Land", "WARN", critical=True)
-
     elif land == "HIGH":
         score("Developable Land", "FAIL", critical=True)
 
-    
-# ---------- EMPLOYMENT QUALITY ----------
-
+    # ---------- EMPLOYMENT QUALITY (Professional Jobs) ----------
     for year in ["2016", "2021"]:
-
         delta = structural.get(f"prof_occ_delta_{year}")
-
-        if elif delta == 0:        if delta is not None:
-                score(f"Professional Jobs {year}", "WARN")
-
-            else:
-                score(f"Professional Jobs {year}", "FAIL")
-
-
-    # ---------- INCOME ----------
-
-    for year in ["2016", "2021"]:
-
-        delta = structural.get(f"income_delta_{year}")
-
         if delta is not None:
-
-            if delta > 0:
-                score(f"Income Growth {year}", "PASS")
-
-            elif delta == 0:
-                score(f"Income Growth {year}", "WARN")
-
-            else:
-                score(f"Income Growth {year}", "FAIL")
-
             if delta > 0:
                 score(f"Professional Jobs {year}", "PASS")
-# ---------- AFFORDABILITY / STRESS ----------
+            elif delta == 0:
+                score(f"Professional Jobs {year}", "WARN")
+            else:
+                score(f"Professional Jobs {year}", "FAIL")
+        else:
+            score(f"Professional Jobs {year}", "FAIL")
 
+    # ---------- INCOME ----------
+    for year in ["2016", "2021"]:
+        delta = structural.get(f"income_delta_{year}")
+        if delta is not None:
+            if delta > 0:
+                score(f"Income Growth {year}", "PASS")
+            elif delta == 0:
+                score(f"Income Growth {year}", "WARN")
+            else:
+                score(f"Income Growth {year}", "FAIL")
+        else:
+            score(f"Income Growth {year}", "FAIL")
+
+    # ---------- AFFORDABILITY / STRESS ----------
     rent_ok = structural.get("rent_stress_ok_pct")
-
     if rent_ok is not None:
         if rent_ok > 65:
             score("Rent Stress", "PASS")
@@ -709,9 +670,7 @@ def evaluate_structural_score(structural):
         else:
             score("Rent Stress", "FAIL")
 
-
     mort_ok = structural.get("mortgage_stress_ok_pct")
-
     if mort_ok is not None:
         if mort_ok > 75:
             score("Mortgage Stress", "PASS")
@@ -720,11 +679,8 @@ def evaluate_structural_score(structural):
         else:
             score("Mortgage Stress", "FAIL")
 
-
     # ---------- JOB INFRASTRUCTURE ----------
-
     jobs = structural.get("job_count")
-
     if jobs is not None:
         if jobs >= 500:
             score("Job Infrastructure", "PASS", critical=True)
@@ -733,11 +689,8 @@ def evaluate_structural_score(structural):
         else:
             score("Job Infrastructure", "FAIL", critical=True)
 
-
     # ---------- ACCESSIBILITY ----------
-
     travel = structural.get("travel_time_mins")
-
     if travel is not None:
         if travel < 45:
             score("Accessibility", "PASS")
@@ -746,11 +699,8 @@ def evaluate_structural_score(structural):
         else:
             score("Accessibility", "FAIL")
 
-
     # ---------- ECONOMIC DIVERSITY ----------
-
     diversity = structural.get("employment_diversity")
-
     if diversity == "HIGH":
         score("Employment Diversity", "PASS")
     elif diversity == "MEDIUM":
@@ -758,11 +708,8 @@ def evaluate_structural_score(structural):
     elif diversity == "LOW":
         score("Employment Diversity", "FAIL")
 
-
     # ---------- HOUSING AFFORDABILITY ----------
-
     affordability = structural.get("affordability_band")
-
     if affordability == "GOOD":
         score("Housing Affordability", "PASS")
     elif affordability == "STRETCHED":
@@ -770,16 +717,13 @@ def evaluate_structural_score(structural):
     elif affordability == "SEVERE":
         score("Housing Affordability", "FAIL")
 
-
     # ---------- FINAL CLASSIFICATION ----------
-
     if critical_fail or fail_count >= 2:
         final = "AVOID"
     elif warn_count >= 3:
         final = "WATCH"
     else:
         final = "BUY"
-
 
     return {
         "Final": final,
