@@ -526,12 +526,25 @@ if st.session_state.deep_analysis_results:
                 f2.metric("Days on Market", extra.get("Days on Market", ""))
                 f3.metric("Yield %", extra.get("Yield %", ""))
                 f4.metric("Median Price", extra.get("Median Price", ""))
-            # ====================== C / C1 — MAP ======================
+# ====================== C / C1 — MAP ======================
             st.markdown("#### 🗺️ Map")
-            map_query = f"{chosen['Suburb']}, {extra.get('State', '')} {extra.get('Postcode', '')}".replace(" ", "+")
+            
+            # 1. Safety check for 'extra' and 'chosen'
+            suburb_name = chosen.get('Suburb', 'Australia')
+            state_val = ""
+            pc_val = ""
+            
+            if isinstance(extra, dict):
+                state_val = extra.get('State', '')
+                pc_val = extra.get('Post code', '') # Note: CSVs often use 'Post code' with a space
+            
+            # 2. Clean the query for the URL
+            map_query = f"{suburb_name}, {state_val} {pc_val}".strip().replace(" ", "+")
+            
+            # 3. Use the correct Google Maps Embed URL
             st.components.v1.iframe(
                 src=f"https://www.google.com/maps?q={map_query}&output=embed",
-                height=800
+                height=600 # 800 is quite tall, 600 is usually better for laptop screens
             )
             # Quick links
             st.link_button(
