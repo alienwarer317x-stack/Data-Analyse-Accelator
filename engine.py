@@ -529,3 +529,19 @@ def evaluate_structural_score(structural):
         "Fail": fail_count,
         "Details": results
     }
+
+def build_path_to_buy(factors, failed_gates):
+    """
+    Generates actionable steps to turn a 'Watch' or 'Avoid' into a 'Buy'.
+    """
+    path = []
+    if "Inventory Risk" in failed_gates:
+        path.append("Wait for Stock on Market (SOM) to trend below 1.2% over 3 consecutive months.")
+    if "Yield Risk" in failed_gates:
+        path.append("Target properties with value-add potential (renovation) to force a higher yield.")
+    if "Growth Over-Extension" in failed_gates:
+        path.append("Monitor for a 12-month price consolidation period to reset the growth cycle.")
+    if "Structural Risk" in failed_gates:
+        path.append("Verify if recent building approvals are concentrated in high-density apartments or detached housing.")
+    
+    return path if path else ["No clear path to buy: Fundamentals are currently too weak."]
