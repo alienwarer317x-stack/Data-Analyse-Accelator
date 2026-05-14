@@ -297,88 +297,170 @@ if st.session_state.deep_analysis_results:
         by=["Investability Score", "Demand / Supply Ratio"],
         ascending=[False, False]
     )
-    # ---------- RISK APPETITE FILTERS ----------
+        # ---------- RISK APPETITE FILTERS ----------
     st.markdown("### ⚖️ Risk Appetite Filters (Post‑Analysis View)")
     st.caption(
         "These filters do NOT change BUY / AVOID decisions. "
         "They only adjust which analysed suburbs are shown."
     )
-    risk_renters_range = st.slider(
-        "Renters proportion you are willing to consider (%)",
-        min_value=10,
-        max_value=60,
-        value=st.session_state.risk_renters_range,
-        step=1,
-        key="risk_renters_range"
-    )
-    risk_max_dom = st.slider(
-        "Maximum Days on Market you are willing to consider",
-        min_value=20,
-        max_value=120,
-        value=st.session_state.risk_max_dom,
-        step=5,
-        key="risk_max_dom"
-    )
+
+    # Existing filters
+    col_r1, col_r2 = st.columns(2)
+    with col_r1:
+        risk_renters_range = st.slider(
+            "Renters proportion you are willing to consider (%)",
+            min_value=10,
+            max_value=60,
+            value=st.session_state.risk_renters_range,
+            step=1,
+            key="risk_renters_range"
+        )
+    with col_r2:
+        risk_max_dom = st.slider(
+            "Maximum Days on Market you are willing to consider",
+            min_value=0,
+            max_value=120,
+            value=st.session_state.risk_max_dom,
+            step=5,
+            key="risk_max_dom"
+        )
+
+    # === NEW FILTERS ===
+    col_f1, col_f2 = st.columns(2)
+
+    with col_f1:
+        risk_vacancy = st.slider(
+            "Maximum Vacancy Rate (%) you are willing to consider",
+            min_value=0.0,
+            max_value=5.0,
+            value=2.0,
+            step=0.1,
+            key="risk_vacancy"
+        )
+
+        risk_stock_on_market = st.slider(
+            "Maximum Stock on Market (%) you are willing to consider",
+            min_value=0.0,
+            max_value=3.0,
+            value=1.3,
+            step=0.1,
+            key="risk_stock_on_market"
+        )
+
+    with col_f2:
+        risk_yield = st.slider(
+            "Minimum Gross Rental Yield (%) you are willing to consider",
+            min_value=2.0,
+            max_value=10.0,
+            value=4.0,
+            step=0.1,
+            key="risk_yield"
+        )
+
+        # Avg Vendor Discounting % (assuming column name is "Avg vendor discounting" or similar)
+        risk_discount = st.slider(
+            "Maximum Avg Vendor Discounting (%) you are willing to consider",
+            min_value=0.0,
+            max_value=15.0,
+            value=8.0,
+            step=0.5,
+            key="risk_discount"
+        )
+      # ========== APPLY ALL RISK APPETITE FILTERS ==========
     df_view = df_results.copy()
+
+    # 1. Renters % filter
     if "Renters %" in df_view.columns:
         df_view = df_view[
             (df_view["Renters %"] >= risk_renters_range[0]) &
             (df_view["Renters %"] <= risk_renters_range[1])
         ]
+
+    # 2. Maximum Days on Market
     if "Days on Market" in df_view.columns:
         df_view = df_view[df_view["Days on Market"] <= risk_max_dom]
+
+    # 3. Vacancy Rate
+    if "Vacancy rate" in df_view.columns or "Vacancy rate%" in df_view.columns:
+        vacancy_col = "Vacancy rate" if "Vacancy rate" in df_view.columns else "Vacancy rate%"
+        df_view = df_view[df_view[vacancy_col] <= risk_vacancy]
+
+    # 4. Stock on Market
+    if "Stock on market" in df_view.columns or "Stock on market%" in df_view.columns or "Percent stock on market" in df_view.columns:
+        stock_col = next((col for col in ["Stock on market", "Stock on market%", "Percent stock on market"] if col in df_view.columns), None)
+        if stock_col:
+            df_view = df_view[df_view[stock_col] <= risk_stock_on_market]
+
+    # 5. Gross Rental Yield (Minimum)
+    if "Gross rental yield" in df_view.columns or "Gross rental yield%" in df_view.columns or "Yield %" in df_view.columns:
+        yield_col = next((col for col in ["Gross rental yield", "Gross rental yield%", "Yield %"] if col in df_view.columns), None)
+        if yield_col:
+            df_view = df_view[df_view[yield_col] >= risk_yield]
+
+    # 6. Avg Vendor Discounting (Maximum)
+    if "Avg vendor discounting" in df_view.columns or "Avg vendor discounting%" in df_view.columns or "Vendor discounting" in df_view.columns:
+        discount_col = next((col for col in ["Avg vendor discounting", "Avg vendor discounting%", "Vendor discounting"] if col in df_view.columns), None)
+        if discount_col:
+            df_view = df_view[df_view[discount_col] <= risk_discount]
+
+    # ========== DECISION LENS ==========
     st.markdown("### ⚖️ Decision Lens")
     view_mode = st.radio(
         "View mode",
-        options=["Strict (Engine BUY only)", "Expanded (Risk‑tolerant view)"],
+        options=["Strict (Engine BUY only)", "Expanded (Risk-tolerant view)"],
         horizontal=True
     )
-    if view_mode == "Strict (Engine BUY only)":
-        df_display_buy = df_results[df_results["Decision"] == "BUY"]
-    else:
-        df_display_buy = df_view[df_view["Decision"] == "BUY"]
-       
-    df_buy = df_view[df_view["Decision"] == "BUY"]
-    df_avoid = df_view[df_view["Decision"] == "AVOID"]
-    st.markdown("### 🏆 Top BUY Opportunities")
-   
-    cols = [
-        "Suburb", "State", "Post code",
-        "Decision",
-        "AVG GR 3yrs (%)",
-        "10y Growth Rate % OTH",
-        "Total CAGR 10yrs (%)",
-        "Demand / Supply Ratio",
-        "Investability Score",
-        "Failed Gates"
-    ]
-    st.dataframe(df_display_buy[cols], use_container_width=True)
-    st.markdown("### ⚠️ AVOID / Watchlist Suburbs")
-    st.dataframe(df_avoid, use_container_width=True)
 
-   # ====================== SUBURB PROFILE (SELECT ONE) ======================
-    st.subheader("🏘️ Suburb Profile")
-    # Prefer selecting from BUY list; fallback to all viewed suburbs
-    if not df_buy.empty:
-        profile_options = df_buy["Suburb"].tolist()
-        st.caption("Showing suburbs from 🏆 Top BUY Opportunities (based on your Risk Appetite view).")
+    # Apply View Mode Logic
+    if view_mode == "Strict (Engine BUY only)":
+        df_display = df_view[df_view["Decision"] == "BUY"]          # Strict = Only BUYs
     else:
-        profile_options = df_view["Suburb"].tolist()
-        st.caption("No BUY suburbs in the current view — showing all analysed suburbs instead.")
+        df_display = df_view.copy()                                  # Expanded = Show all that passed risk filters
+
+    # Display Tables
+    st.markdown("### 🏆 Top BUY Opportunities")
+    cols = [
+        "Suburb", "State", "Post code", "Decision", "Confidence",
+        "Investability Score", "Demand / Supply Ratio",
+        "AVG GR 3yrs (%)", "10y Growth Rate % OTH", "Total CAGR 10yrs (%)", "Failed Gates"
+    ]
+    available_cols = [c for c in cols if c in df_display.columns]
+    st.dataframe(df_display[available_cols], use_container_width=True)
+
+    st.markdown("### ⚠️ AVOID / Watchlist Suburbs")
+    avoid_df = df_display[df_display["Decision"] != "BUY"]
+    st.dataframe(avoid_df[available_cols], use_container_width=True)
+
+    # ====================== SUBURB PROFILE (SELECT ONE) ======================
+    st.subheader("🏘️ Suburb Profile")
+
+    # Use the currently displayed dataframe for profile selection
+    if not df_display.empty:
+        profile_options = df_display["Suburb"].tolist()
+        if view_mode == "Strict (Engine BUY only)":
+            st.caption("Showing suburbs from 🏆 Top BUY Opportunities.")
+        else:
+            st.caption("Showing suburbs based on your Risk Appetite filters (Expanded view).")
+    else:
+        profile_options = []
+        st.caption("No suburbs match your current filters.")
+
     selected_profile_suburb = st.selectbox(
         "Select a suburb to view details",
         options=profile_options,
         key="selected_profile_suburb"
     )
+
     # Build a quick lookup from stored deep analysis results
     results_list = st.session_state.get("deep_analysis_results")
     if not isinstance(results_list, list) or not results_list:
         st.info("Run Deep Analysis to view suburb details.")
         st.stop()
+
     res_map = {r["Suburb"]: r for r in results_list}
     chosen = res_map.get(selected_profile_suburb)
 
-    # Pull extra suburb facts from the current discovery dataframe (Stage 1)
+    # Pull extra suburb facts from the current discovery dataframe
     extra = None
     try:
         match = current_discovery_df[current_discovery_df["Suburb"] == selected_profile_suburb]
@@ -387,7 +469,7 @@ if st.session_state.deep_analysis_results:
     except Exception:
         extra = None
 
-    # Enrich suburb data using lookup table (postcode, LGA, centroid, etc.)
+    # Enrich suburb data using lookup table
     lookup = lookup_suburb(
         selected_profile_suburb,
         extra.get("State") if extra else None
@@ -444,22 +526,37 @@ if st.session_state.deep_analysis_results:
                 f2.metric("Days on Market", extra.get("Days on Market", ""))
                 f3.metric("Yield %", extra.get("Yield %", ""))
                 f4.metric("Median Price", extra.get("Median Price", ""))
-            # ====================== C / C1 — MAP ======================
+# ====================== C / C1 — MAP ======================
             st.markdown("#### 🗺️ Map")
-            map_query = f"{chosen['Suburb']}, {extra.get('State', '')} {extra.get('Postcode', '')}".replace(" ", "+")
-            st.components.v1.iframe(
-                src=f"https://www.google.com/maps?q={map_query}&output=embed",
-                height=800
-            )
-            # Quick links
-            st.link_button(
-                "🗺️ Open in Google Maps",
-                f"https://www.google.com/maps/search/?api=1&query={chosen['Suburb']} {extra.get('State', '')}"
-            )
-            st.link_button(
-                "🔎 Search AreaSearch for this suburb",
-                f"https://www.google.com/search?q=site:areasearch.com.au+suburb+{chosen['Suburb']}"
-            )
+            
+            # 1. Extract values safely
+            suburb_name = chosen.get('Suburb', 'Australia')
+            
+            # Handle 'extra' safety to prevent AttributeError
+            if isinstance(extra, dict):
+                state_val = extra.get('State', '')
+                pc_val = extra.get('Post code', '') or extra.get('Postcode', '')
+            else:
+                state_val = ""
+                pc_val = ""
+            
+            # 2. Build and clean the query
+            map_query = f"{suburb_name}, {state_val} {pc_val}".strip().replace(" ", "+")
+            
+            # 3. Use the standard Google Maps Embed URL
+            # Note: Using the standard maps.google.com embed path
+            google_maps_embed = f"https://maps.google.com/maps?q={map_query}&output=embed"
+            
+            st.components.v1.iframe(src=google_maps_embed, height=600)
+
+            # 4. Update the Link Buttons below to also be safe
+            col_l1, col_l2 = st.columns(2)
+            with col_l1:
+                st.link_button("🗺️ Open in Google Maps", f"https://www.google.com/maps/search/?api=1&query={map_query}")
+            with col_l2:
+                # Direct search for the specific suburb on AreaSearch
+                as_query = f"site:areasearch.com.au+suburb+{suburb_name}+{state_val}".replace(" ", "+")
+                st.link_button("🔎 Search AreaSearch", f"https://www.google.com/search?q={as_query}")
             st.markdown("### 📋 Investment Summary")
            
             summary_rows = [
@@ -512,15 +609,17 @@ if st.session_state.deep_analysis_results:
                     "It does not represent certainty, but rather the strength of evidence "
                     "supporting the investment decision."
                     )
-
         # ====================== B / B1 — PEOPLE ======================
         with tabs[1]:
             st.markdown("#### 👥 Population & Demographics")
-            people = get_people_profile(
-                suburb=chosen["Suburb"],
-                state=extra.get("State"),
-                postcode=chosen.get("Postcode")
-            )
+            
+            # Safe State & Postcode extraction
+            state_val = extra.get("State") if isinstance(extra, dict) else None
+            pc_val = chosen.get("Postcode") or (extra.get("Post code") if isinstance(extra, dict) else None)
+            
+            people = get_people_profile(suburb=chosen["Suburb"], state=state_val, postcode=pc_val)
+            
+            
             if not people:
                 st.info("ABS / Census data not available for this suburb yet.")
             else:
@@ -533,83 +632,136 @@ if st.session_state.deep_analysis_results:
                 st.write(f"- Families: {people.get('families_pct')}%")
                 st.write(f"- Renters: {people.get('renters_pct')}%")
                 st.write(f"- Owner-occupiers: {people.get('owners_pct')}%")
-
-        # ====================== OPTIONAL — ECONOMY ======================
+                
+# ====================== OPTIONAL — ECONOMY ======================
         with tabs[2]:
             st.markdown("#### 🏭 Economy & Employment")
+            # We use the suburb name to fetch the structural data
             structural = get_structural_fundamentals(chosen["Suburb"])
+            
             if not structural:
                 st.info("Economic and employment data not available for this suburb yet.")
             else:
-                st.markdown("**Employment Structure**")
-                if structural.get("industry_diversification") is True:
-                    st.success("Employment base is diversified")
-                elif structural.get("industry_diversification") is False:
-                    st.warning("Employment base is concentrated")
-                else:
-                    st.info("Employment diversification data unavailable")
-                jobs = structural.get("job_infrastructure_count")
-                if jobs is not None:
-                    st.metric("Major employment nodes", jobs)
-                st.markdown("**Income & Affordability Signals**")
-                if structural.get("income_growth_2016") is True or structural.get("income_growth_2021") is True:
-                    st.success("Household incomes have improved over time")
-                elif structural.get("income_growth_2016") is False and structural.get("income_growth_2021") is False:
-                    st.warning("Household income growth has been weak")
-                else:
-                    st.info("Income growth data unavailable")
-               
-                affordability = structural.get("housing_affordability")
-                if affordability == "Good":
-                    st.success("Housing affordability remains supportive")
-                elif affordability == "Poor":
-                    st.warning("Housing affordability is stretched")
+                col_econ1, col_econ2 = st.columns(2)
+                
+                with col_econ1:
+                    st.markdown("**Employment Structure**")
+                    # Mapping the 'employment_diversity' from our new engine logic
+                    diversity = structural.get("employment_diversity", "UNKNOWN").upper()
+                    if "HIGH" in diversity:
+                        st.success("✅ Employment base is highly diversified")
+                    elif "MEDIUM" in diversity or "MODERATE" in diversity:
+                        st.warning("⚠️ Employment base is moderately concentrated")
+                    else:
+                        st.error("🚨 Employment base is highly concentrated")
+                    
+                    jobs = structural.get("job_count")
+                    if jobs:
+                        st.metric("Local Employment Nodes", f"{jobs:,} jobs")
 
-        # ====================== OPTIONAL — INFRASTRUCTURE ======================
+                with col_econ2:
+                    st.markdown("**Income & Resilience**")
+                    # Using the deltas we mapped from AreaSearch/ABS
+                    inc_21 = structural.get("income_delta_2021")
+                    if inc_21 is not None:
+                        inc_label = "Positive" if inc_21 > 0 else "Negative"
+                        st.metric("Income Growth (2021)", f"{inc_21}%", delta=inc_label)
+                    
+                    affordability = structural.get("affordability_band", "UNKNOWN").upper()
+                    if "GOOD" in affordability:
+                        st.success("💰 Housing affordability is supportive")
+                    elif "STRETCHED" in affordability:
+                        st.warning("⚖️ Housing affordability is stretched")
+                    else:
+                        st.info("📊 Affordability data unavailable")
+
+                # Stress Metrics
+                st.markdown("---")
+                st.markdown("**Financial Stress Thresholds**")
+                s_col1, s_col2 = st.columns(2)
+                with s_col1:
+                    rent_stress = structural.get("rent_stress_ok_pct")
+                    if rent_stress:
+                        st.progress(rent_stress / 100)
+                        st.caption(f"{rent_stress}% of households not in rental stress")
+                with s_col2:
+                    mort_stress = structural.get("mortgage_stress_ok_pct")
+                    if mort_stress:
+                        st.progress(mort_stress / 100)
+                        st.caption(f"{mort_stress}% of households not in mortgage stress")
+                        
+# ====================== OPTIONAL — INFRASTRUCTURE ======================
         with tabs[3]:
             st.markdown("#### 🚧 Infrastructure & Amenities")
             structural = get_structural_fundamentals(chosen["Suburb"])
+            
             if not structural:
                 st.info("Infrastructure data not available for this suburb yet.")
             else:
-                travel = structural.get("average_travel_time")
-            if travel is not None:
-                st.metric("Average Commute Time (mins)", travel)
-                if travel <= 35:
-                    st.success("Commute times are favourable")
-                elif travel <= 50:
-                    st.info("Commute times are moderate")
+                # Key alignment: using 'travel_time_mins' from your engine
+                travel = structural.get("travel_time_mins")
+                if travel is not None:
+                    st.metric("Average Commute Time (mins)", travel)
+                    if travel <= 35:
+                        st.success("✅ Commute times are favourable")
+                    elif travel <= 50:
+                        st.info("ℹ️ Commute times are moderate")
+                    else:
+                        st.warning("⚠️ Commute times are long")
                 else:
-                    st.warning("Commute times are long")
+                    st.info("Commute time data unavailable")
+
+            st.markdown("---")
+            # ---------- Physical Infrastructure (Schools & Healthcare) ----------
+            # Safety check: ensure lookup is a dict and has coordinates
+            lat = lookup.get("Latitude") if isinstance(lookup, dict) else None
+            lon = lookup.get("Longitude") if isinstance(lookup, dict) else None
+            
+            if lat and lon:
+                infra = get_infrastructure_profile(lat, lon)
+                
+                col_i1, col_i2 = st.columns(2)
+                with col_i1:
+                    st.markdown("**Schools (within 10 km)**")
+                    if infra.get("schools"):
+                        for s in infra["schools"]:
+                            st.markdown(f"- {s['name']} ({s.get('type', 'School')}) — {s['distance_km']} km")
+                    else:
+                        st.info("No schools found within 10 km.")
+                
+                with col_i2:
+                    st.markdown("**Hospitals & Medical Centres**")
+                    if infra.get("hospitals"):
+                        for h in infra["hospitals"]:
+                            st.markdown(f"- {h['name']} — {h['distance_km']} km")
+                    else:
+                        st.info("No hospitals found within 10 km.")
             else:
-                st.info("Commute time data unavailable")
-
-        # ---------- Physical Infrastructure (Schools & Healthcare) ----------
-        lat = lookup.get("Latitude")
-        lon = lookup.get("Longitude")
-        infra = get_infrastructure_profile(lat, lon)
-        st.markdown("**Schools (within 10 km)**")
-        if infra["schools"]:
-            for s in infra["schools"]:
-                st.markdown(f"- {s['name']} ({s['type']}) — {s['distance_km']} km")
-        else:
-            st.info("No schools found within 10 km.")
-        st.markdown("**Hospitals & Medical Centres (within 10 km)**")
-        if infra["hospitals"]:
-            for h in infra["hospitals"]:
-                st.markdown(f"- {h['name']} — {h['distance_km']} km")
-        else:
-            st.info("No hospitals found within 10 km.")
-
-        # ====================== OPTIONAL — RISK ======================
+                st.warning("📍 Location coordinates missing; cannot fetch nearby amenities.")
+# ====================== OPTIONAL — RISK ======================
         with tabs[4]:
             st.markdown("#### ⚠️ Investment Risk Summary")
-            st.write("**Failed Gates:**")
-            st.write(chosen.get("Failed Gates", "None"))
-            narrative = chosen.get("Narrative", {})
-            risks = narrative.get("risks", [])
-            if risks:
-                for r in risks:
-                    st.markdown(f"- {r}")
+            
+            # Display Failed Gates from the main Engine results
+            st.markdown("**Failed Investment Gates**")
+            failed = chosen.get("Failed Gates")
+            if isinstance(failed, list):
+                for f in failed:
+                    st.error(f"Gate Failed: {f}")
             else:
-                st.write("No major risks identified.")
+                st.success("✅ No primary investment gates failed.")
+
+            st.markdown("---")
+            st.markdown("**Qualitative Risk Analysis**")
+            
+            # Correctly handle the Narrative dictionary structure
+            narrative_data = chosen.get("Narrative", {})
+            if isinstance(narrative_data, dict):
+                risks = narrative_data.get("risks", [])
+                if risks:
+                    for r in risks:
+                        st.markdown(f"🚩 {r}")
+                else:
+                    st.write("No major qualitative risks identified.")
+            else:
+                st.info("Risk narrative data unavailable.")
