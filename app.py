@@ -262,19 +262,25 @@ if current_selected_suburbs:
            
             narr = analysis.get("Narrative", {})
             growth_info = analysis.get("Growth", {})
-            
-# --- STAGE 2 ANALYSIS LOOP ---
+# --- STAGE 2 ANALYSIS LOOP (Synchronized with UI) ---
         results.append({
             "Suburb": r["Suburb"],
             "State": r.get("State"),
             "Post code": r.get("Post code"),
+            
+            # 🟢 REQUIRED BY UI (Top Row Metrics)
+            "Median Price": r.get("Median Price"),
+            "Yield %": r.get("Yield %"),
+            "Days on Market": r.get("Days on Market"),
+            
+            # 🟢 ENGINE RESULTS
             "Decision": analysis["Decision"],
             "Confidence": analysis["Confidence"],
             "Confidence Score": analysis["Confidence Score"],
             "Investability Score": analysis["Investability Score"],
             "Demand / Supply Ratio": analysis["Demand / Supply Ratio"],
             
-            # ✅ FIX: Explicitly map the nested growth_info to the display keys
+            # 🟢 GROWTH SUMMARY KEYS (Explicit Mapping)
             "AVG GR 3yrs (%)": growth_info.get("avg_36m", 0),
             "10y Growth Rate % OTH": growth_info.get("oth_cagr", 0),
             "Total CAGR 10yrs (%)": growth_info.get("total_cagr", 0),
