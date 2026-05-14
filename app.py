@@ -73,8 +73,9 @@ def format_narrative_for_table(narrative):
     failed = narrative.get("failed_gate_explanations") or []
     risks = narrative.get("risks") or []
     
+    # CORRECT
     if "asset_result" not in st.session_state:
-    st.session_state.asset_result = None
+        st.session_state.asset_result = None
     
     # BUY: highlight strongest positive
     if "BUY" in headline.upper():
@@ -96,6 +97,8 @@ def format_narrative_for_table(narrative):
 
 
 # ====================== SESSION STATE ======================
+if "asset_result" not in st.session_state:
+    st.session_state.asset_result = None
 
 if "deep_analysis_cache" not in st.session_state:
     st.session_state.deep_analysis_cache = {}
