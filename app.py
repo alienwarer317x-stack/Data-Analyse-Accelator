@@ -262,23 +262,26 @@ if current_selected_suburbs:
            
             narr = analysis.get("Narrative", {})
             growth_info = analysis.get("Growth", {})
-            results.append({
-                "Suburb": r["Suburb"],
-                "State": r.get("State"),
-                "Post code": r.get("Post code"),
-                "Decision": analysis["Decision"],
-                "Confidence": analysis["Confidence"],
-                "Confidence Score": analysis["Confidence Score"],
-                "Investability Score": analysis["Investability Score"],
-                "Demand / Supply Ratio": analysis["Demand / Supply Ratio"],
-               
-            # ✅ NEW — Growth visibility
-                "AVG GR 3yrs (%)": growth_info.get("avg_36m"),
-                "10y Growth Rate % OTH": growth_info.get("oth_cagr"),
-                "Total CAGR 10yrs (%)": growth_info.get("total_cagr"),
-                "Failed Gates": ", ".join(analysis.get("Failed Gates", [])),
-                "Narrative": narr,
-            })
+            
+# --- STAGE 2 ANALYSIS LOOP ---
+        results.append({
+            "Suburb": r["Suburb"],
+            "State": r.get("State"),
+            "Post code": r.get("Post code"),
+            "Decision": analysis["Decision"],
+            "Confidence": analysis["Confidence"],
+            "Confidence Score": analysis["Confidence Score"],
+            "Investability Score": analysis["Investability Score"],
+            "Demand / Supply Ratio": analysis["Demand / Supply Ratio"],
+            
+            # ✅ FIX: Explicitly map the nested growth_info to the display keys
+            "AVG GR 3yrs (%)": growth_info.get("avg_36m", 0),
+            "10y Growth Rate % OTH": growth_info.get("oth_cagr", 0),
+            "Total CAGR 10yrs (%)": growth_info.get("total_cagr", 0),
+            
+            "Failed Gates": ", ".join(analysis.get("Failed Gates", [])),
+            "Narrative": narr,
+        })
         # ✅ STORE RESULTS — ENGINE RUNS ONCE
         st.session_state.deep_analysis_results = results
 
@@ -484,28 +487,29 @@ if st.session_state.deep_analysis_results:
        
         # ====================== A1 / A2 — OVERVIEW ======================
         with tabs[0]:
-            c1, c2, c3, c4 = st.columns(4)
+            c1, c2, c3, c4 , c5 = st.columns(5)
             c1.metric("Decision", chosen["Decision"])
             c2.metric("Confidence",chosen.get("Confidence"),help=CONFIDENCE_EXPLANATION.get(chosen.get("Confidence"), ""))
             c3.metric("Investability Score", chosen["Investability Score"])
             c4.metric("Demand / Supply Ratio", chosen["Demand / Supply Ratio"])
+            c5.metric("Yield %", chosen["Yield %"])
             st.markdown("#### 📈 Growth Summary")
            
             g1, g2, g3 = st.columns(3)
            
             g1.metric(
                 "AVG GR 3yrs (%)",
-                f"{chosen.get('AVG GR 3yrs (%)', '—')}"
+                f"{chosen.get('AVG GR 3yrs (%)', '—')}%"
             )
            
             g2.metric(
                 "10y Growth Rate % (OTH)",
-                f"{chosen.get('10y Growth Rate % OTH', '—')}"
+                f"{chosen.get('10y Growth Rate % OTH', '—')}%"
             )
            
             g3.metric(
                 "Total CAGR 10yrs (%)",
-                f"{chosen.get('Total CAGR 10yrs (%)', '—')}"
+                f"{chosen.get('Total CAGR 10yrs (%)', '—')}%"
             )
             # ⚠️ Growth alignment warning (HOLD / Review explanation)
             if "Alignment Issue" in str(chosen.get("Failed Gates", "")):
