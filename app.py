@@ -72,6 +72,10 @@ def format_narrative_for_table(narrative):
     strengths = narrative.get("strengths") or []
     failed = narrative.get("failed_gate_explanations") or []
     risks = narrative.get("risks") or []
+
+    # Add this near line 75
+    if "df_display" not in st.session_state:
+        df_display = pd.DataFrame()
     
     # CORRECT
     if "asset_result" not in st.session_state:
@@ -747,7 +751,12 @@ display_cols = [
     "Failed Gates",
 ]
 
-display_cols = [c for c in display_cols if c in df_display.columns]
+if 'df_display' in locals() or 'df_display' in globals():
+    display_cols = ["Suburb", "State", "Post code", "Confidence", "Investability Score", "Demand / Supply Ratio", "AVG GR 3yrs (%)", "Total CAGR 10yrs (%)", "Failed Gates"]
+    display_cols = [c for c in display_cols if c in df_display.columns]
+else:
+    st.warning("No data available to display. Please run Discovery and Deep Analysis first.")
+    st.stop()
 
 # ---------- BUY TABLE ----------
 buy_df = df_display[df_display["Decision"] == "BUY"]
