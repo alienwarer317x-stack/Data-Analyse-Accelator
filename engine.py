@@ -9,21 +9,26 @@ from ingestion.abs_adapter import get_abs_structural
 
 # ---------------- NORMALISATION ----------------
 def normalise_percent(val):
-    if val is None:
+    """
+    Standardises input to a consistent float. 
+    Assumes input like '5.5', 5.5, or '5.5%' all represent 5.5%.
+    """
+    if val is None or val == "":
         return None
     try:
+        # Remove % and whitespace, then convert to float
         v = float(str(val).replace("%", "").strip())
-        return v * 100 if v <= 1 else v
-    except:
+        return v
+    except (ValueError, TypeError):
         return None
-
 
 def normalise_plain(val):
-    if val is None:
+    """Standardises non-percentage numeric inputs."""
+    if val is None or val == "":
         return None
     try:
-        return float(str(val).replace("%", "").strip())
-    except:
+        return float(str(val).replace(",", "").replace("$", "").strip())
+    except (ValueError, TypeError):
         return None
 
 
@@ -52,21 +57,44 @@ def calculate_demand_supply_ratio(vacancy, stock, dom):
 
 # ---------------- BUY GATES ----------------
 def evaluate_buy_gates(factors):
+    """
+    Evaluates the 'Must-Have' financial and supply metrics.
+    Returns a tuple: (Decision String, List of failed gate names)
+    """
     failed = []
-    if factors["renters_pct"] is None or not (15 <= factors["renters_pct"] <= 35):
+    
+    # 1. Renter Ratio (Ideally 15-35% for balanced owner-occupier appeal)
+    renters = factors.get("renters_pct")
+    if renters is None or not (15 <= renters <= 35):
         failed.append("Renters %")
-    if factors["vacancy_pct"] is None or factors["vacancy_pct"] >= 2:
-        failed.append("Vacancy")
-    if factors["demand_supply_ratio"] is None or factors["demand_supply_ratio"] <= 55:
-        failed.append("Demand / Supply")
-    if factors["stock_on_market_pct"] is None or factors["stock_on_market_pct"] >= 1.3:
-        failed.append("Stock on Market")
-    if factors["gross_rental_yield"] is None or factors["gross_rental_yield"] <= 4:
-        failed.append("Gross Yield")
-    if factors["statistical_reliability"] is not None and factors["statistical_reliability"] <= 51:
-        failed.append("Reliability")
-    return ("BUY" if not failed else "AVOID"), failed
 
+    # 2. Vacancy Rate (Must be low, < 2%)
+    vacancy = factors.get("vacancy_pct")
+    if vacancy is None or vacancy >= 2.0:
+        failed.append("Vacancy")
+
+    # 3. Demand/Supply Ratio (DSR Score > 55)
+    dsr = factors.get("demand_supply_ratio")
+    if dsr is None or dsr <= 55:
+        failed.append("Demand / Supply")
+
+    # 4. Stock on Market (Ideally < 1.3%)
+    stock = factors.get("stock_on_market_pct")
+    if stock is None or stock >= 1.3:
+        failed.append("Stock on Market")
+
+    # 5. Gross Rental Yield (Ideally > 4%)
+    yield_pct = factors.get("gross_rental_yield")
+    if yield_pct is None or yield_pct <= 4.0:
+        failed.append("Gross Yield")
+
+    # 6. Statistical Reliability (Must be > 51)
+    reliability = factors.get("statistical_reliability")
+    if reliability is not None and reliability <= 51:
+        failed.append("Reliability")
+
+    decision = "BUY" if not failed else "AVOID"
+    return decision, failed
 
 BUY_GATE_EXPLANATIONS = {
     "Renters %": "Renter proportion sits outside the preferred 15–35% range, weakening rental stability.",
@@ -186,34 +214,39 @@ def triangulate_36m_growth(sqm_36m, htag_36m, typical_36m):
 
 
 def triangulate_10y_growth(sqm_cagr, oth_total_growth, htag_total_growth):
-    oth_cagr = calculate_cagr_from_total(oth_total_growth)
-    htag_cagr = calculate_cagr_from_total(htag_total_growth)
-    values = [v for v in [sqm_cagr, oth_cagr, htag_cagr] if isinstance(v, (int, float))]
+    # Ensure inputs are numbers using our new normalisers
+    sqm_c = normalise_percent(sqm_cagr)
+    oth_c = calculate_cagr_from_total(oth_total_growth)
+    htag_c = calculate_cagr_from_total(htag_total_growth)
+    
+    # Filter for valid numbers
+    values = [v for v in [sqm_c, oth_c, htag_c] if v is not None]
+    
     if len(values) < 2:
         return {
-            "sqm_cagr": sqm_cagr,
-            "oth_cagr": oth_cagr,
-            "htag_cagr": htag_cagr,
-            "total_cagr": None,
-            "alignment_gap": None,
-            "status": "INSUFFICIENT_DATA",
+            "sqm_cagr": sqm_c, "oth_cagr": oth_c, "htag_cagr": htag_c,
+            "total_cagr": None, "alignment_gap": None, "status": "INSUFFICIENT_DATA"
         }
+    
     total_cagr = sum(values) / len(values)
-    alignment_gap = abs(oth_cagr - total_cagr) if oth_cagr is not None else None
+    
+    # Calculate gap based on the source most likely to vary (oth_c)
+    alignment_gap = abs(oth_c - total_cagr) if (oth_c is not None and total_cagr is not None) else 0
 
-    if total_cagr > 7:
-        status = "FAIL"
-    elif alignment_gap is not None and alignment_gap > 1:
-        status = "REVIEW"
+    # Logic Gates
+    if total_cagr > 7.0:
+        status = "FAIL" # Overheated
+    elif alignment_gap > 2.5: 
+        status = "REVIEW" # Data conflict
     else:
         status = "PASS"
 
     return {
-        "sqm_cagr": sqm_cagr,
-        "oth_cagr": oth_cagr,
-        "htag_cagr": htag_cagr,
+        "sqm_cagr": sqm_c,
+        "oth_cagr": oth_c,
+        "htag_cagr": htag_c,
         "total_cagr": round(total_cagr, 2),
-        "alignment_gap": round(alignment_gap, 2) if alignment_gap else None,
+        "alignment_gap": round(alignment_gap, 2),
         "status": status,
     }
 
