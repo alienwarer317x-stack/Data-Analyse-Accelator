@@ -297,170 +297,88 @@ if st.session_state.deep_analysis_results:
         by=["Investability Score", "Demand / Supply Ratio"],
         ascending=[False, False]
     )
-        # ---------- RISK APPETITE FILTERS ----------
+    # ---------- RISK APPETITE FILTERS ----------
     st.markdown("### ⚖️ Risk Appetite Filters (Post‑Analysis View)")
     st.caption(
         "These filters do NOT change BUY / AVOID decisions. "
         "They only adjust which analysed suburbs are shown."
     )
-
-    # Existing filters
-    col_r1, col_r2 = st.columns(2)
-    with col_r1:
-        risk_renters_range = st.slider(
-            "Renters proportion you are willing to consider (%)",
-            min_value=10,
-            max_value=60,
-            value=st.session_state.risk_renters_range,
-            step=1,
-            key="risk_renters_range"
-        )
-    with col_r2:
-        risk_max_dom = st.slider(
-            "Maximum Days on Market you are willing to consider",
-            min_value=0,
-            max_value=120,
-            value=st.session_state.risk_max_dom,
-            step=5,
-            key="risk_max_dom"
-        )
-
-    # === NEW FILTERS ===
-    col_f1, col_f2 = st.columns(2)
-
-    with col_f1:
-        risk_vacancy = st.slider(
-            "Maximum Vacancy Rate (%) you are willing to consider",
-            min_value=0.0,
-            max_value=5.0,
-            value=2.0,
-            step=0.1,
-            key="risk_vacancy"
-        )
-
-        risk_stock_on_market = st.slider(
-            "Maximum Stock on Market (%) you are willing to consider",
-            min_value=0.0,
-            max_value=3.0,
-            value=1.3,
-            step=0.1,
-            key="risk_stock_on_market"
-        )
-
-    with col_f2:
-        risk_yield = st.slider(
-            "Minimum Gross Rental Yield (%) you are willing to consider",
-            min_value=2.0,
-            max_value=10.0,
-            value=4.0,
-            step=0.1,
-            key="risk_yield"
-        )
-
-        # Avg Vendor Discounting % (assuming column name is "Avg vendor discounting" or similar)
-        risk_discount = st.slider(
-            "Maximum Avg Vendor Discounting (%) you are willing to consider",
-            min_value=0.0,
-            max_value=15.0,
-            value=8.0,
-            step=0.5,
-            key="risk_discount"
-        )
-      # ========== APPLY ALL RISK APPETITE FILTERS ==========
+    risk_renters_range = st.slider(
+        "Renters proportion you are willing to consider (%)",
+        min_value=10,
+        max_value=60,
+        value=st.session_state.risk_renters_range,
+        step=1,
+        key="risk_renters_range"
+    )
+    risk_max_dom = st.slider(
+        "Maximum Days on Market you are willing to consider",
+        min_value=20,
+        max_value=120,
+        value=st.session_state.risk_max_dom,
+        step=5,
+        key="risk_max_dom"
+    )
     df_view = df_results.copy()
-
-    # 1. Renters % filter
     if "Renters %" in df_view.columns:
         df_view = df_view[
             (df_view["Renters %"] >= risk_renters_range[0]) &
             (df_view["Renters %"] <= risk_renters_range[1])
         ]
-
-    # 2. Maximum Days on Market
     if "Days on Market" in df_view.columns:
         df_view = df_view[df_view["Days on Market"] <= risk_max_dom]
-
-    # 3. Vacancy Rate
-    if "Vacancy rate" in df_view.columns or "Vacancy rate%" in df_view.columns:
-        vacancy_col = "Vacancy rate" if "Vacancy rate" in df_view.columns else "Vacancy rate%"
-        df_view = df_view[df_view[vacancy_col] <= risk_vacancy]
-
-    # 4. Stock on Market
-    if "Stock on market" in df_view.columns or "Stock on market%" in df_view.columns or "Percent stock on market" in df_view.columns:
-        stock_col = next((col for col in ["Stock on market", "Stock on market%", "Percent stock on market"] if col in df_view.columns), None)
-        if stock_col:
-            df_view = df_view[df_view[stock_col] <= risk_stock_on_market]
-
-    # 5. Gross Rental Yield (Minimum)
-    if "Gross rental yield" in df_view.columns or "Gross rental yield%" in df_view.columns or "Yield %" in df_view.columns:
-        yield_col = next((col for col in ["Gross rental yield", "Gross rental yield%", "Yield %"] if col in df_view.columns), None)
-        if yield_col:
-            df_view = df_view[df_view[yield_col] >= risk_yield]
-
-    # 6. Avg Vendor Discounting (Maximum)
-    if "Avg vendor discounting" in df_view.columns or "Avg vendor discounting%" in df_view.columns or "Vendor discounting" in df_view.columns:
-        discount_col = next((col for col in ["Avg vendor discounting", "Avg vendor discounting%", "Vendor discounting"] if col in df_view.columns), None)
-        if discount_col:
-            df_view = df_view[df_view[discount_col] <= risk_discount]
-
-    # ========== DECISION LENS ==========
     st.markdown("### ⚖️ Decision Lens")
     view_mode = st.radio(
         "View mode",
-        options=["Strict (Engine BUY only)", "Expanded (Risk-tolerant view)"],
+        options=["Strict (Engine BUY only)", "Expanded (Risk‑tolerant view)"],
         horizontal=True
     )
-
-    # Apply View Mode Logic
     if view_mode == "Strict (Engine BUY only)":
-        df_display = df_view[df_view["Decision"] == "BUY"]          # Strict = Only BUYs
+        df_display_buy = df_results[df_results["Decision"] == "BUY"]
     else:
-        df_display = df_view.copy()                                  # Expanded = Show all that passed risk filters
-
-    # Display Tables
+        df_display_buy = df_view[df_view["Decision"] == "BUY"]
+       
+    df_buy = df_view[df_view["Decision"] == "BUY"]
+    df_avoid = df_view[df_view["Decision"] == "AVOID"]
     st.markdown("### 🏆 Top BUY Opportunities")
+   
     cols = [
-        "Suburb", "State", "Post code", "Decision", "Confidence",
-        "Investability Score", "Demand / Supply Ratio",
-        "AVG GR 3yrs (%)", "10y Growth Rate % OTH", "Total CAGR 10yrs (%)", "Failed Gates"
+        "Suburb", "State", "Post code",
+        "Decision",
+        "AVG GR 3yrs (%)",
+        "10y Growth Rate % OTH",
+        "Total CAGR 10yrs (%)",
+        "Demand / Supply Ratio",
+        "Investability Score",
+        "Failed Gates"
     ]
-    available_cols = [c for c in cols if c in df_display.columns]
-    st.dataframe(df_display[available_cols], use_container_width=True)
-
+    st.dataframe(df_display_buy[cols], use_container_width=True)
     st.markdown("### ⚠️ AVOID / Watchlist Suburbs")
-    avoid_df = df_display[df_display["Decision"] != "BUY"]
-    st.dataframe(avoid_df[available_cols], use_container_width=True)
+    st.dataframe(df_avoid, use_container_width=True)
 
-    # ====================== SUBURB PROFILE (SELECT ONE) ======================
+   # ====================== SUBURB PROFILE (SELECT ONE) ======================
     st.subheader("🏘️ Suburb Profile")
-
-    # Use the currently displayed dataframe for profile selection
-    if not df_display.empty:
-        profile_options = df_display["Suburb"].tolist()
-        if view_mode == "Strict (Engine BUY only)":
-            st.caption("Showing suburbs from 🏆 Top BUY Opportunities.")
-        else:
-            st.caption("Showing suburbs based on your Risk Appetite filters (Expanded view).")
+    # Prefer selecting from BUY list; fallback to all viewed suburbs
+    if not df_buy.empty:
+        profile_options = df_buy["Suburb"].tolist()
+        st.caption("Showing suburbs from 🏆 Top BUY Opportunities (based on your Risk Appetite view).")
     else:
-        profile_options = []
-        st.caption("No suburbs match your current filters.")
-
+        profile_options = df_view["Suburb"].tolist()
+        st.caption("No BUY suburbs in the current view — showing all analysed suburbs instead.")
     selected_profile_suburb = st.selectbox(
         "Select a suburb to view details",
         options=profile_options,
         key="selected_profile_suburb"
     )
-
     # Build a quick lookup from stored deep analysis results
     results_list = st.session_state.get("deep_analysis_results")
     if not isinstance(results_list, list) or not results_list:
         st.info("Run Deep Analysis to view suburb details.")
         st.stop()
-
     res_map = {r["Suburb"]: r for r in results_list}
     chosen = res_map.get(selected_profile_suburb)
 
-    # Pull extra suburb facts from the current discovery dataframe
+    # Pull extra suburb facts from the current discovery dataframe (Stage 1)
     extra = None
     try:
         match = current_discovery_df[current_discovery_df["Suburb"] == selected_profile_suburb]
@@ -469,7 +387,7 @@ if st.session_state.deep_analysis_results:
     except Exception:
         extra = None
 
-    # Enrich suburb data using lookup table
+    # Enrich suburb data using lookup table (postcode, LGA, centroid, etc.)
     lookup = lookup_suburb(
         selected_profile_suburb,
         extra.get("State") if extra else None
