@@ -7,15 +7,24 @@ import pandas as pd
 
 ABS_DATA_PATH = "data/abs_structural.csv"
 
+# Global cache to prevent repeated disk reads
+_ABS_CACHE = None
 
 def load_abs_data():
-    """Load ABS structural data from CSV"""
+    """Load ABS structural data from CSV with caching"""
+    global _ABS_CACHE
+    if _ABS_CACHE is not None:
+        return _ABS_CACHE
+        
     try:
-        return pd.read_csv(ABS_DATA_PATH)
+        _ABS_CACHE = pd.read_csv(ABS_DATA_PATH)
+        # Pre-process suburb names to uppercase for faster lookups
+        if not _ABS_CACHE.empty:
+            _ABS_CACHE["Suburb_Upper"] = _ABS_CACHE["Suburb"].astype(str).str.upper().str.strip()
+        return _ABS_CACHE
     except FileNotFoundError:
         print(f"Warning: ABS data file not found at {ABS_DATA_PATH}")
         return pd.DataFrame()
-
 
 def get_abs_structural(suburb_name):
     """
@@ -29,9 +38,9 @@ def get_abs_structural(suburb_name):
     if df.empty:
         return {}
 
-    # Case-insensitive search
+    # Case-insensitive search using the cached uppercase column
     suburb_upper = str(suburb_name).strip().upper()
-    row = df[df["Suburb"].astype(str).str.upper() == suburb_upper]
+    row = df[df["Suburb_Upper"] == suburb_upper]
 
     if row.empty:
         return {}
