@@ -72,7 +72,10 @@ def format_narrative_for_table(narrative):
     strengths = narrative.get("strengths") or []
     failed = narrative.get("failed_gate_explanations") or []
     risks = narrative.get("risks") or []
-
+    
+    if "asset_result" not in st.session_state:
+    st.session_state.asset_result = None
+    
     # BUY: highlight strongest positive
     if "BUY" in headline.upper():
         if strengths:
@@ -1188,82 +1191,54 @@ with tabs[4]:
         st.write("No major risks identified.")
         
 # ====================== STAGE 3 — ASSET SELECTION ======================
-if chosen:  # Only show if a suburb profile is currently active
+if chosen:  
     st.divider()
     st.markdown("## 🔍 Stage 3 — Individual Property Analysis")
     st.subheader(f"Evaluate an Asset in {chosen['Suburb']}")
-    st.info(
-        "Agent Tip: A great suburb can still have bad houses. "
-        "Use this checklist to ensure the specific property is an 'A-Grade' asset."
-    )
-
+    
     with st.expander("📝 Physical Property Checklist", expanded=False):
         col1, col2 = st.columns(2)
         with col1:
             land = st.number_input("Land Size (sqm)", value=450, step=10)
             frontage = st.number_input("Frontage (m)", value=12.0, step=0.5)
-            orientation = st.checkbox(
-                "North-Facing Backyard?",
-                help="Optimal for natural light and capital growth.",
-            )
+            orientation = st.checkbox("North-Facing Backyard?")
         with col2:
-            main_road = st.checkbox(
-                "Is it on a Main Road?",
-                help="Properties on main roads often suffer from higher days-on-market and lower growth.",
-            )
-            renovated = st.selectbox(
-                "Internal Condition",
-                ["Original", "Neat", "Renovated", "New / Brand New"],
-            )
+            main_road = st.checkbox("Is it on a Main Road?")
+            renovated = st.selectbox("Internal Condition", ["Original", "Neat", "Renovated", "New / Brand New"])
 
         if st.button("Generate Asset Verdict"):
-            # Call the logic from property_evaluator.py
-            asset_result = score_property_asset(
-                {
-                    "land_size": land,
-                    "frontage_metres": frontage,
-                    "north_facing_rear": orientation,
-                    "on_main_road": main_road,
-                }
-            )
+            # FIX: Save to session_state instead of a local variable
+            st.session_state.asset_result = score_property_asset({
+                "land_size": land,
+                "frontage_metres": frontage,
+                "north_facing_rear": orientation,
+                "on_main_road": main_road,
+            })
 
-            st.divider()
+    # FIX: Check session_state instead of locals()
+    if st.session_state.asset_result:
+        res = st.session_state.asset_result
+        st.divider()
+        
+        val_col1, val_col2 = st.columns(2)
+        val_col1.metric("Asset Grade", res["grade"])
+        val_col2.metric("Asset Score", f"{res['asset_score']}/100")
 
-            # Display Grade and Score
-            val_col1, val_col2 = st.columns(2)
-            val_col1.metric("Asset Grade", asset_result["grade"])
-            val_col2.metric("Asset Score", f"{asset_result['asset_score']}/100")
+        if res["asset_score"] >= 80:
+            st.success(f"**Verdict:** Premium asset for {chosen['Suburb']}. Proceed to Stage 4.")
+        elif res["asset_score"] >= 65:
+            st.warning("**Verdict:** Secondary (B-Grade) asset. Watch your entry price.")
+        else:
+            st.error("**Verdict:** Avoid. Significant structural compromises.")
 
-            # Final Advice Narrative
-            if asset_result["asset_score"] >= 80:
-                st.success(
-                    f"**Verdict:** This is a premium asset for {chosen['Suburb']}. "
-                    "Proceed to Stage 4: Due Diligence."
-                )
-            elif asset_result["asset_score"] >= 65:
-                st.warning(
-                    "**Verdict:** This is a secondary (B-Grade) asset. "
-                    "Ensure you are not overpaying."
-                )
-            else:
-                st.error(
-                    "**Verdict:** Avoid. This asset has structural compromises "
-                    "that will hinder long-term performance."
-                )
+        c_pos, c_neg = st.columns(2)
+        with c_pos:
+            st.write("**Investment Boosters**")
+            for p in res["positives"]: st.write(f"✅ {p}")
+        with c_neg:
+            st.write("**Risk Factors**")
+            for n in res["negatives"]: st.write(f"❌ {n}")
 
-            # Pros and Cons
-            c_pos, c_neg = st.columns(2)
-            with c_pos:
-                st.write("**Investment Boosters**")
-                for p in asset_result["positives"]:
-                    st.write(f"✅ {p}")
-            with c_neg:
-                st.write("**Risk Factors**")
-                for n in asset_result["negatives"]:
-                    st.write(f"❌ {n}")
-
-
-# ====================== STAGE 4 — ROADMAP ======================
-if chosen and 'asset_result' in locals():
-     st.markdown("## 🛠️ Stage 4 — Next Steps")
-     st.write("Ready to proceed? [Download Buyer's Agent Checklist PDF]")
+        # ====================== STAGE 4 — ROADMAP ======================
+        st.markdown("## 🛠️ Stage 4 — Next Steps")
+        st.write("Ready to proceed? [Download Buyer's Agent Checklist PDF]")
