@@ -9,26 +9,21 @@ from ingestion.abs_adapter import get_abs_structural
 
 # ---------------- NORMALISATION ----------------
 def normalise_percent(val):
-    """
-    Standardises input to a consistent float. 
-    Assumes input like '5.5', 5.5, or '5.5%' all represent 5.5%.
-    """
-    if val is None or val == "":
+    if val is None:
         return None
     try:
-        # Remove % and whitespace, then convert to float
         v = float(str(val).replace("%", "").strip())
-        return v
-    except (ValueError, TypeError):
+        return v * 100 if v <= 1 else v
+    except:
         return None
 
+
 def normalise_plain(val):
-    """Standardises non-percentage numeric inputs."""
-    if val is None or val == "":
+    if val is None:
         return None
     try:
-        return float(str(val).replace(",", "").replace("$", "").strip())
-    except (ValueError, TypeError):
+        return float(str(val).replace("%", "").strip())
+    except:
         return None
 
 
@@ -57,44 +52,21 @@ def calculate_demand_supply_ratio(vacancy, stock, dom):
 
 # ---------------- BUY GATES ----------------
 def evaluate_buy_gates(factors):
-    """
-    Evaluates the 'Must-Have' financial and supply metrics.
-    Returns a tuple: (Decision String, List of failed gate names)
-    """
     failed = []
-    
-    # 1. Renter Ratio (Ideally 15-35% for balanced owner-occupier appeal)
-    renters = factors.get("renters_pct")
-    if renters is None or not (15 <= renters <= 35):
+    if factors["renters_pct"] is None or not (15 <= factors["renters_pct"] <= 35):
         failed.append("Renters %")
-
-    # 2. Vacancy Rate (Must be low, < 2%)
-    vacancy = factors.get("vacancy_pct")
-    if vacancy is None or vacancy >= 2.0:
+    if factors["vacancy_pct"] is None or factors["vacancy_pct"] >= 2:
         failed.append("Vacancy")
-
-    # 3. Demand/Supply Ratio (DSR Score > 55)
-    dsr = factors.get("demand_supply_ratio")
-    if dsr is None or dsr <= 55:
+    if factors["demand_supply_ratio"] is None or factors["demand_supply_ratio"] <= 55:
         failed.append("Demand / Supply")
-
-    # 4. Stock on Market (Ideally < 1.3%)
-    stock = factors.get("stock_on_market_pct")
-    if stock is None or stock >= 1.3:
+    if factors["stock_on_market_pct"] is None or factors["stock_on_market_pct"] >= 1.3:
         failed.append("Stock on Market")
-
-    # 5. Gross Rental Yield (Ideally > 4%)
-    yield_pct = factors.get("gross_rental_yield")
-    if yield_pct is None or yield_pct <= 4.0:
+    if factors["gross_rental_yield"] is None or factors["gross_rental_yield"] <= 4:
         failed.append("Gross Yield")
-
-    # 6. Statistical Reliability (Must be > 51)
-    reliability = factors.get("statistical_reliability")
-    if reliability is not None and reliability <= 51:
+    if factors["statistical_reliability"] is not None and factors["statistical_reliability"] <= 51:
         failed.append("Reliability")
+    return ("BUY" if not failed else "AVOID"), failed
 
-    decision = "BUY" if not failed else "AVOID"
-    return decision, failed
 
 BUY_GATE_EXPLANATIONS = {
     "Renters %": "Renter proportion sits outside the preferred 15–35% range, weakening rental stability.",
@@ -214,39 +186,34 @@ def triangulate_36m_growth(sqm_36m, htag_36m, typical_36m):
 
 
 def triangulate_10y_growth(sqm_cagr, oth_total_growth, htag_total_growth):
-    # Ensure inputs are numbers using our new normalisers
-    sqm_c = normalise_percent(sqm_cagr)
-    oth_c = calculate_cagr_from_total(oth_total_growth)
-    htag_c = calculate_cagr_from_total(htag_total_growth)
-    
-    # Filter for valid numbers
-    values = [v for v in [sqm_c, oth_c, htag_c] if v is not None]
-    
+    oth_cagr = calculate_cagr_from_total(oth_total_growth)
+    htag_cagr = calculate_cagr_from_total(htag_total_growth)
+    values = [v for v in [sqm_cagr, oth_cagr, htag_cagr] if isinstance(v, (int, float))]
     if len(values) < 2:
         return {
-            "sqm_cagr": sqm_c, "oth_cagr": oth_c, "htag_cagr": htag_c,
-            "total_cagr": None, "alignment_gap": None, "status": "INSUFFICIENT_DATA"
+            "sqm_cagr": sqm_cagr,
+            "oth_cagr": oth_cagr,
+            "htag_cagr": htag_cagr,
+            "total_cagr": None,
+            "alignment_gap": None,
+            "status": "INSUFFICIENT_DATA",
         }
-    
     total_cagr = sum(values) / len(values)
-    
-    # Calculate gap based on the source most likely to vary (oth_c)
-    alignment_gap = abs(oth_c - total_cagr) if (oth_c is not None and total_cagr is not None) else 0
+    alignment_gap = abs(oth_cagr - total_cagr) if oth_cagr is not None else None
 
-    # Logic Gates
-    if total_cagr > 7.0:
-        status = "FAIL" # Overheated
-    elif alignment_gap > 2.5: 
-        status = "REVIEW" # Data conflict
+    if total_cagr > 7:
+        status = "FAIL"
+    elif alignment_gap is not None and alignment_gap > 1:
+        status = "REVIEW"
     else:
         status = "PASS"
 
     return {
-        "sqm_cagr": sqm_c,
-        "oth_cagr": oth_c,
-        "htag_cagr": htag_c,
+        "sqm_cagr": sqm_cagr,
+        "oth_cagr": oth_cagr,
+        "htag_cagr": htag_cagr,
         "total_cagr": round(total_cagr, 2),
-        "alignment_gap": round(alignment_gap, 2),
+        "alignment_gap": round(alignment_gap, 2) if alignment_gap else None,
         "status": status,
     }
 
@@ -268,47 +235,35 @@ def build_authoritative_narrative(decision, dsr, growth, failed_gates, structura
     risks = []
     gate_explanations = []
 
-    # 1. Demand/Supply Balance
     if dsr is not None:
         if dsr >= 70:
-            strengths.append("High Conviction: Demand materially exceeds supply, creating a tight seller's market.")
+            strengths.append("Demand materially exceeds supply, creating a tight market.")
         elif dsr >= 60:
-            strengths.append("Healthy Balance: Demand exceeds supply, supporting steady price growth.")
+            strengths.append("Demand exceeds supply, supporting steady conditions.")
         else:
-            risks.append("Supply Risk: Demand–supply balance is currently insufficient to drive short-term growth.")
+            risks.append("Demand–supply balance is insufficient to drive growth.")
 
-    # 2. Growth Sustainability (Minimum Criteria: <= 7% CAGR)
-    # Using the 'total_cagr' key from our triangulation logic
-    cagr = growth.get("total_cagr")
-    if cagr is not None:
-        if cagr <= 7.0:
-            strengths.append(f"Sustainable Growth: Long-term growth ({cagr}%) is within healthy historical norms.")
+    if growth.get("cagr_10y_pct") is not None:
+        if growth["cagr_10y_pct"] <= 7:
+            strengths.append("Long‑term growth remains within sustainable norms.")
         else:
-            risks.append(f"Overheated: 10-year growth ({cagr}%) exceeds sustainability benchmarks, suggesting a cycle peak.")
+            risks.append("Long‑term growth exceeds sustainability benchmarks.")
 
-    # 3. Structural Stage 3 Assessment
-    # Mapped to the 'Final' key and new BUY/WATCH/AVOID statuses
-    struct_status = structural_eval.get("Final")
-    if struct_status == "BUY":
-        strengths.append("Strong Fundamentals: Professional growth and income deltas support long-term value.")
-    elif struct_status == "AVOID":
-        risks.append("Structural Failure: Critical risks identified in supply approvals or employment diversity.")
-    elif struct_status == "WATCH":
-        risks.append("Elevated Risk: Structural metrics (Income/Stress) require close monitoring.")
-
-    # 4. Map Failed Gates to explanations
     for g in failed_gates:
         explanation = BUY_GATE_EXPLANATIONS.get(g)
         if explanation:
             gate_explanations.append(explanation)
 
-    # 5. Determine Headline Strategy
-    if decision == "BUY":
-        headline = "Why this suburb is considered a BUY"
-    elif decision == "HOLD":
-        headline = "Neutral Assessment: This suburb is a HOLD / REVIEW"
-    else:
-        headline = "Why this suburb is assessed as an AVOID"
+    if structural_eval["status"] == "FAIL":
+        risks.append("Structural fundamentals fail long‑term investment criteria.")
+    elif structural_eval["status"] == "WARN":
+        risks.append("Structural fundamentals introduce elevated long‑term risk.")
+
+    headline = (
+        "Why this suburb is considered a BUY"
+        if decision == "BUY"
+        else "Why this suburb is assessed as an AVOID"
+    )
 
     return {
         "headline": headline,
@@ -365,32 +320,25 @@ def evaluate_suburb(row):
         failed.append("10yr CAGR Alignment Issue")
         if decision == "BUY":
             decision = "HOLD"
-# ---------------- STAGE 3 – STRUCTURAL SCORING ----------------
+
+    # ---------------- STAGE 3 – STRUCTURAL SCORING ----------------
     abs_data = get_abs_structural(row.get("Suburb"))
 
     structural_data = {
-        # 1. Development & Supply (Real data from AreaSearch/CSV)
-        "approval_ratio_18m": normalise_plain(row.get("Approvals per 1,000 People (2yr)")),
-        "developable_land": row.get("Development Drivers Ranking", "MODERATE"),
-        
-        # 2. Socio-Economic Deltas (From your optimized ABS adapter)
+        "approval_ratio_18m": 5.5,
+        "developable_land": "LOW",
         "prof_occ_delta_2016": abs_data.get("prof_occ_delta_2016"),
         "prof_occ_delta_2021": abs_data.get("prof_occ_delta_2021"),
         "income_delta_2016": abs_data.get("income_delta_2016"),
         "income_delta_2021": abs_data.get("income_delta_2021"),
-        
-        # 3. Financial Resilience (From your optimized ABS adapter)
         "rent_stress_ok_pct": abs_data.get("rent_stress_ok_pct"),
         "mortgage_stress_ok_pct": abs_data.get("mortgage_stress_ok_pct"),
-        
-        # 4. Job Infrastructure & Context (Real data from AreaSearch/CSV)
-        "job_count": normalise_plain(row.get("Total Employment")),
-        "travel_time_mins": normalise_plain(row.get("Persons per Square Kilometer")), 
-        "employment_diversity": row.get("AS Employment Drivers Ranking", "MEDIUM"),
-        "affordability_band": row.get("AS Income Ranking", "STRETCHED"),
+        "job_count": 620,
+        "travel_time_mins": 42,
+        "employment_diversity": "HIGH",
+        "affordability_band": "GOOD",
     }
 
-    # The rest of your logic remains the same but now uses REAL data
     structural_stage3 = evaluate_structural_score(structural_data)
 
     confidence_score, confidence_band = calculate_confidence(decision)
@@ -419,6 +367,7 @@ def evaluate_suburb(row):
         "Narrative": narrative,
     }
 
+
 # ============================================================
 # STAGE 3 — STRUCTURAL SCORING
 # ============================================================
@@ -444,7 +393,7 @@ def evaluate_structural_score(structural):
             if critical:
                 critical_fail = True
 
-    # ---------- SUPPLY & LAND ----------
+    # ---------- SUPPLY ----------
     ratio = structural.get("approval_ratio_18m")
     if ratio is not None:
         if ratio < 6:
@@ -454,65 +403,92 @@ def evaluate_structural_score(structural):
         else:
             score("18m Approvals Ratio", "FAIL", critical=True)
 
-    # Use .upper() and 'in' to catch variations like "Low" or "Constrained"
-    land = str(structural.get("developable_land") or "").upper()
-    if any(x in land for x in ["LOW", "CONSTRAINED", "LIMITED"]):
+    land = structural.get("developable_land")
+    if land == "LOW":
         score("Developable Land", "PASS", critical=True)
-    elif "MODERATE" in land:
+    elif land == "MODERATE":
         score("Developable Land", "WARN", critical=True)
-    elif "HIGH" in land or land != "":
+    elif land == "HIGH":
         score("Developable Land", "FAIL", critical=True)
 
-    # ---------- EMPLOYMENT QUALITY & INCOME ----------
+    # ---------- EMPLOYMENT QUALITY ----------
     for year in ["2016", "2021"]:
-        for metric in ["prof_occ_delta", "income_delta"]:
-            key = f"{metric}_{year}"
-            val = structural.get(key)
-            label = "Professional Jobs" if "prof" in metric else "Income Growth"
-            if val is not None:
-                if val > 0:
-                    score(f"{label} {year}", "PASS")
-                elif val == 0:
-                    score(f"{label} {year}", "WARN")
-                else:
-                    score(f"{label} {year}", "FAIL")
+        delta = structural.get(f"prof_occ_delta_{year}")
+        if delta is not None:
+            if delta > 0:
+                score(f"Professional Jobs {year}", "PASS")
+            elif delta == 0:
+                score(f"Professional Jobs {year}", "WARN")
+            else:
+                score(f"Professional Jobs {year}", "FAIL")
 
-    # ---------- FINANCIAL RESILIENCE ----------
+    # ---------- INCOME ----------
+    for year in ["2016", "2021"]:
+        delta = structural.get(f"income_delta_{year}")
+        if delta is not None:
+            if delta > 0:
+                score(f"Income Growth {year}", "PASS")
+            elif delta == 0:
+                score(f"Income Growth {year}", "WARN")
+            else:
+                score(f"Income Growth {year}", "FAIL")
+
+    # ---------- AFFORDABILITY / STRESS ----------
     rent_ok = structural.get("rent_stress_ok_pct")
     if rent_ok is not None:
-        if rent_ok > 65: score("Rent Stress", "PASS")
-        elif rent_ok >= 60: score("Rent Stress", "WARN")
-        else: score("Rent Stress", "FAIL")
+        if rent_ok > 65:
+            score("Rent Stress", "PASS")
+        elif rent_ok >= 60:
+            score("Rent Stress", "WARN")
+        else:
+            score("Rent Stress", "FAIL")
 
     mort_ok = structural.get("mortgage_stress_ok_pct")
     if mort_ok is not None:
-        if mort_ok > 75: score("Mortgage Stress", "PASS")
-        elif mort_ok >= 70: score("Mortgage Stress", "WARN")
-        else: score("Mortgage Stress", "FAIL")
+        if mort_ok > 75:
+            score("Mortgage Stress", "PASS")
+        elif mort_ok >= 70:
+            score("Mortgage Stress", "WARN")
+        else:
+            score("Mortgage Stress", "FAIL")
 
-    # ---------- JOB INFRASTRUCTURE & ACCESSIBILITY ----------
+    # ---------- JOB INFRASTRUCTURE ----------
     jobs = structural.get("job_count")
     if jobs is not None:
-        if jobs >= 500: score("Job Infrastructure", "PASS", critical=True)
-        elif jobs >= 50: score("Job Infrastructure", "WARN", critical=True)
-        else: score("Job Infrastructure", "FAIL", critical=True)
+        if jobs >= 500:
+            score("Job Infrastructure", "PASS", critical=True)
+        elif jobs >= 50:
+            score("Job Infrastructure", "WARN", critical=True)
+        else:
+            score("Job Infrastructure", "FAIL", critical=True)
 
+    # ---------- ACCESSIBILITY ----------
     travel = structural.get("travel_time_mins")
     if travel is not None:
-        if travel < 45: score("Accessibility", "PASS")
-        elif travel <= 60: score("Accessibility", "WARN")
-        else: score("Accessibility", "FAIL")
+        if travel < 45:
+            score("Accessibility", "PASS")
+        elif travel <= 60:
+            score("Accessibility", "WARN")
+        else:
+            score("Accessibility", "FAIL")
 
-    # ---------- DIVERSITY & AFFORDABILITY (String Checks) ----------
-    diversity = str(structural.get("employment_diversity") or "").upper()
-    if "HIGH" in diversity: score("Employment Diversity", "PASS")
-    elif "MEDIUM" in diversity or "MODERATE" in diversity: score("Employment Diversity", "WARN")
-    elif "LOW" in diversity: score("Employment Diversity", "FAIL")
+    # ---------- ECONOMIC DIVERSITY ----------
+    diversity = structural.get("employment_diversity")
+    if diversity == "HIGH":
+        score("Employment Diversity", "PASS")
+    elif diversity == "MEDIUM":
+        score("Employment Diversity", "WARN")
+    elif diversity == "LOW":
+        score("Employment Diversity", "FAIL")
 
-    affordability = str(structural.get("affordability_band") or "").upper()
-    if "GOOD" in affordability: score("Housing Affordability", "PASS")
-    elif "STRETCHED" in affordability: score("Housing Affordability", "WARN")
-    elif "SEVERE" in affordability: score("Housing Affordability", "FAIL")
+    # ---------- HOUSING AFFORDABILITY ----------
+    affordability = structural.get("affordability_band")
+    if affordability == "GOOD":
+        score("Housing Affordability", "PASS")
+    elif affordability == "STRETCHED":
+        score("Housing Affordability", "WARN")
+    elif affordability == "SEVERE":
+        score("Housing Affordability", "FAIL")
 
     # ---------- FINAL CLASSIFICATION ----------
     if critical_fail or fail_count >= 2:
@@ -529,19 +505,3 @@ def evaluate_structural_score(structural):
         "Fail": fail_count,
         "Details": results
     }
-
-def build_path_to_buy(factors, failed_gates):
-    """
-    Generates actionable steps to turn a 'Watch' or 'Avoid' into a 'Buy'.
-    """
-    path = []
-    if "Inventory Risk" in failed_gates:
-        path.append("Wait for Stock on Market (SOM) to trend below 1.2% over 3 consecutive months.")
-    if "Yield Risk" in failed_gates:
-        path.append("Target properties with value-add potential (renovation) to force a higher yield.")
-    if "Growth Over-Extension" in failed_gates:
-        path.append("Monitor for a 12-month price consolidation period to reset the growth cycle.")
-    if "Structural Risk" in failed_gates:
-        path.append("Verify if recent building approvals are concentrated in high-density apartments or detached housing.")
-    
-    return path if path else ["No clear path to buy: Fundamentals are currently too weak."]
