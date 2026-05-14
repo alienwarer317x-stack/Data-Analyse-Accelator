@@ -609,19 +609,17 @@ if st.session_state.deep_analysis_results:
                     "It does not represent certainty, but rather the strength of evidence "
                     "supporting the investment decision."
                     )
-
         # ====================== B / B1 — PEOPLE ======================
         with tabs[1]:
             st.markdown("#### 👥 Population & Demographics")
             
-                  # Extract state safely from extra
+            # Safe State & Postcode extraction
             state_val = extra.get("State") if isinstance(extra, dict) else None
+            pc_val = chosen.get("Postcode") or (extra.get("Post code") if isinstance(extra, dict) else None)
             
-            people = get_people_profile(
-                suburb=chosen["Suburb"], 
-                state=state_val, 
-                postcode=chosen.get("Postcode") 
+            people = get_people_profile(suburb=chosen["Suburb"], state=state_val, postcode=pc_val)
             )
+            
             if not people:
                 st.info("ABS / Census data not available for this suburb yet.")
             else:
@@ -634,83 +632,136 @@ if st.session_state.deep_analysis_results:
                 st.write(f"- Families: {people.get('families_pct')}%")
                 st.write(f"- Renters: {people.get('renters_pct')}%")
                 st.write(f"- Owner-occupiers: {people.get('owners_pct')}%")
-
-        # ====================== OPTIONAL — ECONOMY ======================
+                
+# ====================== OPTIONAL — ECONOMY ======================
         with tabs[2]:
             st.markdown("#### 🏭 Economy & Employment")
+            # We use the suburb name to fetch the structural data
             structural = get_structural_fundamentals(chosen["Suburb"])
+            
             if not structural:
                 st.info("Economic and employment data not available for this suburb yet.")
             else:
-                st.markdown("**Employment Structure**")
-                if structural.get("industry_diversification") is True:
-                    st.success("Employment base is diversified")
-                elif structural.get("industry_diversification") is False:
-                    st.warning("Employment base is concentrated")
-                else:
-                    st.info("Employment diversification data unavailable")
-                jobs = structural.get("job_infrastructure_count")
-                if jobs is not None:
-                    st.metric("Major employment nodes", jobs)
-                st.markdown("**Income & Affordability Signals**")
-                if structural.get("income_growth_2016") is True or structural.get("income_growth_2021") is True:
-                    st.success("Household incomes have improved over time")
-                elif structural.get("income_growth_2016") is False and structural.get("income_growth_2021") is False:
-                    st.warning("Household income growth has been weak")
-                else:
-                    st.info("Income growth data unavailable")
-               
-                affordability = structural.get("housing_affordability")
-                if affordability == "Good":
-                    st.success("Housing affordability remains supportive")
-                elif affordability == "Poor":
-                    st.warning("Housing affordability is stretched")
+                col_econ1, col_econ2 = st.columns(2)
+                
+                with col_econ1:
+                    st.markdown("**Employment Structure**")
+                    # Mapping the 'employment_diversity' from our new engine logic
+                    diversity = structural.get("employment_diversity", "UNKNOWN").upper()
+                    if "HIGH" in diversity:
+                        st.success("✅ Employment base is highly diversified")
+                    elif "MEDIUM" in diversity or "MODERATE" in diversity:
+                        st.warning("⚠️ Employment base is moderately concentrated")
+                    else:
+                        st.error("🚨 Employment base is highly concentrated")
+                    
+                    jobs = structural.get("job_count")
+                    if jobs:
+                        st.metric("Local Employment Nodes", f"{jobs:,} jobs")
 
-        # ====================== OPTIONAL — INFRASTRUCTURE ======================
+                with col_econ2:
+                    st.markdown("**Income & Resilience**")
+                    # Using the deltas we mapped from AreaSearch/ABS
+                    inc_21 = structural.get("income_delta_2021")
+                    if inc_21 is not None:
+                        inc_label = "Positive" if inc_21 > 0 else "Negative"
+                        st.metric("Income Growth (2021)", f"{inc_21}%", delta=inc_label)
+                    
+                    affordability = structural.get("affordability_band", "UNKNOWN").upper()
+                    if "GOOD" in affordability:
+                        st.success("💰 Housing affordability is supportive")
+                    elif "STRETCHED" in affordability:
+                        st.warning("⚖️ Housing affordability is stretched")
+                    else:
+                        st.info("📊 Affordability data unavailable")
+
+                # Stress Metrics
+                st.markdown("---")
+                st.markdown("**Financial Stress Thresholds**")
+                s_col1, s_col2 = st.columns(2)
+                with s_col1:
+                    rent_stress = structural.get("rent_stress_ok_pct")
+                    if rent_stress:
+                        st.progress(rent_stress / 100)
+                        st.caption(f"{rent_stress}% of households not in rental stress")
+                with s_col2:
+                    mort_stress = structural.get("mortgage_stress_ok_pct")
+                    if mort_stress:
+                        st.progress(mort_stress / 100)
+                        st.caption(f"{mort_stress}% of households not in mortgage stress")
+                        
+# ====================== OPTIONAL — INFRASTRUCTURE ======================
         with tabs[3]:
             st.markdown("#### 🚧 Infrastructure & Amenities")
             structural = get_structural_fundamentals(chosen["Suburb"])
+            
             if not structural:
                 st.info("Infrastructure data not available for this suburb yet.")
             else:
-                travel = structural.get("average_travel_time")
-            if travel is not None:
-                st.metric("Average Commute Time (mins)", travel)
-                if travel <= 35:
-                    st.success("Commute times are favourable")
-                elif travel <= 50:
-                    st.info("Commute times are moderate")
+                # Key alignment: using 'travel_time_mins' from your engine
+                travel = structural.get("travel_time_mins")
+                if travel is not None:
+                    st.metric("Average Commute Time (mins)", travel)
+                    if travel <= 35:
+                        st.success("✅ Commute times are favourable")
+                    elif travel <= 50:
+                        st.info("ℹ️ Commute times are moderate")
+                    else:
+                        st.warning("⚠️ Commute times are long")
                 else:
-                    st.warning("Commute times are long")
+                    st.info("Commute time data unavailable")
+
+            st.markdown("---")
+            # ---------- Physical Infrastructure (Schools & Healthcare) ----------
+            # Safety check: ensure lookup is a dict and has coordinates
+            lat = lookup.get("Latitude") if isinstance(lookup, dict) else None
+            lon = lookup.get("Longitude") if isinstance(lookup, dict) else None
+            
+            if lat and lon:
+                infra = get_infrastructure_profile(lat, lon)
+                
+                col_i1, col_i2 = st.columns(2)
+                with col_i1:
+                    st.markdown("**Schools (within 10 km)**")
+                    if infra.get("schools"):
+                        for s in infra["schools"]:
+                            st.markdown(f"- {s['name']} ({s.get('type', 'School')}) — {s['distance_km']} km")
+                    else:
+                        st.info("No schools found within 10 km.")
+                
+                with col_i2:
+                    st.markdown("**Hospitals & Medical Centres**")
+                    if infra.get("hospitals"):
+                        for h in infra["hospitals"]:
+                            st.markdown(f"- {h['name']} — {h['distance_km']} km")
+                    else:
+                        st.info("No hospitals found within 10 km.")
             else:
-                st.info("Commute time data unavailable")
-
-        # ---------- Physical Infrastructure (Schools & Healthcare) ----------
-        lat = lookup.get("Latitude")
-        lon = lookup.get("Longitude")
-        infra = get_infrastructure_profile(lat, lon)
-        st.markdown("**Schools (within 10 km)**")
-        if infra["schools"]:
-            for s in infra["schools"]:
-                st.markdown(f"- {s['name']} ({s['type']}) — {s['distance_km']} km")
-        else:
-            st.info("No schools found within 10 km.")
-        st.markdown("**Hospitals & Medical Centres (within 10 km)**")
-        if infra["hospitals"]:
-            for h in infra["hospitals"]:
-                st.markdown(f"- {h['name']} — {h['distance_km']} km")
-        else:
-            st.info("No hospitals found within 10 km.")
-
-        # ====================== OPTIONAL — RISK ======================
+                st.warning("📍 Location coordinates missing; cannot fetch nearby amenities.")
+# ====================== OPTIONAL — RISK ======================
         with tabs[4]:
             st.markdown("#### ⚠️ Investment Risk Summary")
-            st.write("**Failed Gates:**")
-            st.write(chosen.get("Failed Gates", "None"))
-            narrative = chosen.get("Narrative", {})
-            risks = narrative.get("risks", [])
-            if risks:
-                for r in risks:
-                    st.markdown(f"- {r}")
+            
+            # Display Failed Gates from the main Engine results
+            st.markdown("**Failed Investment Gates**")
+            failed = chosen.get("Failed Gates")
+            if isinstance(failed, list):
+                for f in failed:
+                    st.error(f"Gate Failed: {f}")
             else:
-                st.write("No major risks identified.")
+                st.success("✅ No primary investment gates failed.")
+
+            st.markdown("---")
+            st.markdown("**Qualitative Risk Analysis**")
+            
+            # Correctly handle the Narrative dictionary structure
+            narrative_data = chosen.get("Narrative", {})
+            if isinstance(narrative_data, dict):
+                risks = narrative_data.get("risks", [])
+                if risks:
+                    for r in risks:
+                        st.markdown(f"🚩 {r}")
+                else:
+                    st.write("No major qualitative risks identified.")
+            else:
+                st.info("Risk narrative data unavailable.")
