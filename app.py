@@ -529,32 +529,34 @@ if st.session_state.deep_analysis_results:
 # ====================== C / C1 — MAP ======================
             st.markdown("#### 🗺️ Map")
             
-            # 1. Safety check for 'extra' and 'chosen'
+            # 1. Extract values safely
             suburb_name = chosen.get('Suburb', 'Australia')
-            state_val = ""
-            pc_val = ""
             
+            # Handle 'extra' safety to prevent AttributeError
             if isinstance(extra, dict):
                 state_val = extra.get('State', '')
-                pc_val = extra.get('Post code', '') # Note: CSVs often use 'Post code' with a space
+                pc_val = extra.get('Post code', '') or extra.get('Postcode', '')
+            else:
+                state_val = ""
+                pc_val = ""
             
-            # 2. Clean the query for the URL
+            # 2. Build and clean the query
             map_query = f"{suburb_name}, {state_val} {pc_val}".strip().replace(" ", "+")
             
-            # 3. Use the correct Google Maps Embed URL
-            st.components.v1.iframe(
-                src=f"https://www.google.com/maps?q={map_query}&output=embed",
-                height=600 # 800 is quite tall, 600 is usually better for laptop screens
-            )
-            # Quick links
-            st.link_button(
-                "🗺️ Open in Google Maps",
-                f"https://www.google.com/maps/search/?api=1&query={chosen['Suburb']} {extra.get('State', '')}"
-            )
-            st.link_button(
-                "🔎 Search AreaSearch for this suburb",
-                f"https://www.google.com/search?q=site:areasearch.com.au+suburb+{chosen['Suburb']}"
-            )
+            # 3. Use the standard Google Maps Embed URL
+            # Note: Using the standard maps.google.com embed path
+            google_maps_embed = f"https://maps.google.com/maps?q={map_query}&output=embed"
+            
+            st.components.v1.iframe(src=google_maps_embed, height=600)
+
+            # 4. Update the Link Buttons below to also be safe
+            col_l1, col_l2 = st.columns(2)
+            with col_l1:
+                st.link_button("🗺️ Open in Google Maps", f"https://www.google.com/maps/search/?api=1&query={map_query}")
+            with col_l2:
+                # Direct search for the specific suburb on AreaSearch
+                as_query = f"site:areasearch.com.au+suburb+{suburb_name}+{state_val}".replace(" ", "+")
+                st.link_button("🔎 Search AreaSearch", f"https://www.google.com/search?q={as_query}")
             st.markdown("### 📋 Investment Summary")
            
             summary_rows = [
