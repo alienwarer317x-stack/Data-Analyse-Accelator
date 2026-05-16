@@ -493,12 +493,12 @@ if st.session_state.deep_analysis_results:
        
         # ====================== A1 / A2 — OVERVIEW ======================
         with tabs[0]:
-            c1, c2, c3, c4 , c5 = st.columns(5)
+            c1, c2, c3, c4 = st.columns(4)
             c1.metric("Decision", chosen["Decision"])
             c2.metric("Confidence",chosen.get("Confidence"),help=CONFIDENCE_EXPLANATION.get(chosen.get("Confidence"), ""))
             c3.metric("Investability Score", chosen["Investability Score"])
             c4.metric("Demand / Supply Ratio", chosen["Demand / Supply Ratio"])
-            c5.metric("Yield %", chosen["Yield %"])
+            
             st.markdown("#### 📈 Growth Summary")
            
             g1, g2, g3 = st.columns(3)
