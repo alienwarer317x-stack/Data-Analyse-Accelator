@@ -57,7 +57,7 @@ def calculate_demand_supply_ratio(vacancy, stock, dom):
 
 # ---------------- BUY GATES ----------------
 def evaluate_buy_gates(factors):
-    print(factors)
+        print("DEBUG FACTORS:", factors)   # ✅ PASTE THIS LINE RIGHT HERE
 
     """
     Evaluates the 'Must-Have' financial and supply metrics.
