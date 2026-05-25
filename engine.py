@@ -57,6 +57,8 @@ def calculate_demand_supply_ratio(vacancy, stock, dom):
 
 # ---------------- BUY GATES ----------------
 def evaluate_buy_gates(factors):
+    print(factors)
+
     """
     Evaluates the 'Must-Have' financial and supply metrics.
     Returns a tuple: (Decision String, List of failed gate names)
@@ -154,8 +156,7 @@ def build_path_to_buy(factors, failed_gates):
             )
     return actions
 
-    print(factors)
-
+  
 # ---------------- GROWTH ----------------
 def calculate_cagr(total_growth_pct, years):
     if total_growth_pct is None or years <= 0:
