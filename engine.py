@@ -154,6 +154,7 @@ def build_path_to_buy(factors, failed_gates):
             )
     return actions
 
+    print(factors)
 
 # ---------------- GROWTH ----------------
 def calculate_cagr(total_growth_pct, years):
