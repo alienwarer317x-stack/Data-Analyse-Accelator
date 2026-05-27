@@ -436,8 +436,14 @@ def evaluate_suburb(row):
         if decision == "BUY":
             decision = "HOLD"
 
-    abs_data = get_abs_structural(suburb, state=state, postcode=postcode) if suburb else {}
-    abs_data = abs_data or {}
+    abs_data = {}
+    if suburb:
+        try:
+            abs_data = get_abs_structural(suburb)
+        except TypeError:
+            abs_data = get_abs_structural(suburb or "")
+        except Exception:
+            abs_data = {}
 
     structural_data = {
         "approval_ratio_18m": normalise_plain(row.get("Approvals per 1,000 People (2yr)")),
